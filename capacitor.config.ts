@@ -4,6 +4,10 @@ const config: CapacitorConfig = {
   appId: 'com.xessia.softwarejessica',
   appName: 'XESSIA Software Jessica',
   webDir: 'dist',
+  server: {
+    url: 'https://software-jessica-production.up.railway.app',
+    cleartext: true
+  },
   plugins: {
     SplashScreen: {
       launchShowDuration: 1500,

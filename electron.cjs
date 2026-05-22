@@ -24,6 +24,8 @@ function createWindow() {
     }
   });
 
+  const REMOTE_URL = 'https://software-jessica-production.up.railway.app';
+
   // Load local build file in production or connect to Vite dev server in development
   if (!app.isPackaged) {
     // In development, load local vite dev server first
@@ -33,9 +35,13 @@ function createWindow() {
       });
     });
   } else {
-    // In production, always load the local index.html directly
-    mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html')).catch(err => {
-      console.error('Failed to load local index.html', err);
+    // In production, load the remote Railway URL so updates reflect instantly.
+    // If the remote server is down or there is no network, fallback to the local static index.html.
+    mainWindow.loadURL(REMOTE_URL).catch(() => {
+      console.warn('Could not connect to Railway server, falling back to local files.');
+      mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html')).catch(err => {
+        console.error('Failed to load local fallback index.html', err);
+      });
     });
   }
 

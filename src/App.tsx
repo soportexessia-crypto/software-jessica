@@ -26,39 +26,55 @@ const MainAppContent: React.FC = () => {
   const CLIENT_VERSION = '1.0.0';
   const [checkingVersion, setCheckingVersion] = useState(true);
   const [isForceUpdateRequired, setIsForceUpdateRequired] = useState(false);
+  const [isLiveUpdating, setIsLiveUpdating] = useState(false);
   const [versionConfig, setVersionConfig] = useState<any>(null);
 
   React.useEffect(() => {
-    const checkVersion = async () => {
+    const isVersionLower = (current: string, target: string): boolean => {
+      const currentParts = current.split('.').map(Number);
+      const targetParts = target.split('.').map(Number);
+      for (let i = 0; i < Math.max(currentParts.length, targetParts.length); i++) {
+        const c = currentParts[i] || 0;
+        const t = targetParts[i] || 0;
+        if (c < t) return true;
+        if (c > t) return false;
+      }
+      return false;
+    };
+
+    const checkVersion = async (isPoll = false) => {
       try {
         const { api } = await import('./services/api');
         const config = await api.get('/system/version');
         setVersionConfig(config);
-        
-        const isVersionLower = (current: string, required: string): boolean => {
-          const currentParts = current.split('.').map(Number);
-          const requiredParts = required.split('.').map(Number);
-          for (let i = 0; i < Math.max(currentParts.length, requiredParts.length); i++) {
-            const c = currentParts[i] || 0;
-            const r = requiredParts[i] || 0;
-            if (c < r) return true;
-            if (c > r) return false;
-          }
-          return false;
-        };
 
         if (isVersionLower(CLIENT_VERSION, config.minVersion)) {
           setIsForceUpdateRequired(true);
+        } else if (isVersionLower(CLIENT_VERSION, config.latestVersion)) {
+          // Si detectamos una versión superior a la cargada en memoria, disparamos la actualización en caliente
+          setIsLiveUpdating(true);
+          setTimeout(() => {
+            window.location.reload();
+          }, 3000);
         }
       } catch (err) {
-        // Fallback robusto offline
         console.warn('Fallo en verificación de versión (modo offline o servidor inaccesible):', err);
       } finally {
-        setCheckingVersion(false);
+        if (!isPoll) {
+          setCheckingVersion(false);
+        }
       }
     };
 
+    // Consultar de inmediato al iniciar
     checkVersion();
+
+    // Sondeo periódico cada 45 segundos para detectar nuevos deploys en Railway en caliente
+    const intervalId = setInterval(() => {
+      checkVersion(true);
+    }, 45000);
+
+    return () => clearInterval(intervalId);
   }, []);
 
   // Global search navigation callback
@@ -95,12 +111,16 @@ const MainAppContent: React.FC = () => {
     }
   };
 
-  if (loading || checkingVersion) {
+  if (loading || checkingVersion || isLiveUpdating) {
     return (
       <div className="app-loading-screen">
         <img src="img/Logo.png" alt="XESSIA" className="app-loading-logo" />
         <div className="app-loading-spinner"></div>
-        <div className="app-loading-text">Conectando a XESSIA Cloud...</div>
+        <div className="app-loading-text">
+          {isLiveUpdating 
+            ? 'Nueva versión de XESSIA detectada. Aplicando actualizaciones en vivo...' 
+            : 'Conectando a XESSIA Cloud...'}
+        </div>
       </div>
     );
   }

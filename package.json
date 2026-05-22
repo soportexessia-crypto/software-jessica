@@ -5,6 +5,8 @@
   "type": "module",
   "main": "electron.cjs",
   "scripts": {
+    "start": "node backend/src/index.js",
+    "postinstall": "npm --prefix backend install",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:obfuscate": "tsc -b && vite build && npx javascript-obfuscator dist/assets --output dist/assets --compact true --self-defending true --debug-protection true --disable-console-output true --split-strings true --string-array-threshold 1",
