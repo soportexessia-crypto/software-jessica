@@ -38,7 +38,7 @@ app.use('/api/seed',         require('./routes/seed'));
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '1.0.0', app: 'XESSIA Backend' });
+  res.json({ status: 'ok', version: '1.0.1-test', app: 'XESSIA Backend' });
 });
 
 // Redirigir cualquier otra petición al index.html del frontend (para soporte de React Router/SPA)
