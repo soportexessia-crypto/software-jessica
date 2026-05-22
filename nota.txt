@@ -1,0 +1,16 @@
+encillos pasos:
+
+Subir los cambios a tu repositorio Git (hacia Railway): Abre una terminal y ejecuta:
+
+bash
+
+
+git add .
+git commit -m "feat: implementar carga remota en Railway y hot-reload de actualizaciones"
+git push origin main
+Railway detectará automáticamente la subida, instalará todas las dependencias cruzadas con el nuevo script postinstall, compilará el frontend React en /dist y encenderá el backend sirviendo todo unificado en tu dominio principal.
+
+Recompilar los instaladores una última vez: Dado que cambiamos los archivos contenedores nativos (electron.cjs y capacitor.config.ts), debes recompilar los instaladores por última vez para Jessica:
+
+Para Windows (EXE): Ejecuta npm run electron:build para empaquetar el nuevo instalador de escritorio de producción.
+Para Android (APK): Ejecuta npm run mobile:build para generar el APK definitivo redireccionado a Railway.
