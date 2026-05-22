@@ -3,35 +3,34 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
-const { execSync } = require('child_process');
+const { exec } = require('child_process');
 const connectDB = require('./db');
 
 const app = express();
 
 // Autoevaluación y compilación dinámica del frontend (Self-healing)
-global.buildLogs = 'No execution needed (Frontend build already exists).';
+global.buildLogs = 'No background execution needed (Frontend build already exists).';
 global.buildError = null;
 
 const distPath = path.join(__dirname, '../../dist');
 const indexPath = path.join(distPath, 'index.html');
 console.log('🔍 Checking frontend build at:', indexPath);
 if (!fs.existsSync(indexPath)) {
-  console.log('⚠️ Frontend build not found! Attempting to build dynamically on startup...');
-  try {
-    const output = execSync('npm run build', {
-      cwd: path.join(__dirname, '../..'),
-      stdio: 'pipe'
-    });
-    global.buildLogs = output.toString();
-    console.log('✅ Dynamic frontend build completed successfully!');
-  } catch (error) {
-    global.buildError = {
-      message: error.message,
-      stdout: error.stdout ? error.stdout.toString() : '',
-      stderr: error.stderr ? error.stderr.toString() : ''
-    };
-    console.error('❌ Dynamic frontend build failed:', error.message);
-  }
+  console.log('⚠️ Frontend build not found! Attempting to build dynamically in the background...');
+  global.buildLogs = 'Build in progress... Check back in a few seconds.';
+  exec('npm run build', { cwd: path.join(__dirname, '../..') }, (error, stdout, stderr) => {
+    if (error) {
+      global.buildError = {
+        message: error.message,
+        stdout: stdout ? stdout.toString() : '',
+        stderr: stderr ? stderr.toString() : ''
+      };
+      console.error('❌ Dynamic frontend build failed:', error.message);
+    } else {
+      global.buildLogs = stdout ? stdout.toString() : 'Success!';
+      console.log('✅ Dynamic frontend build completed successfully!');
+    }
+  });
 } else {
   console.log('✅ Frontend build found at:', indexPath);
 }
