@@ -22,6 +22,12 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas.' });
     }
 
+    // Corrección automática en base de datos si tiene apellido antiguo
+    if (user.email === 'soporte.xessia@gmail.com' && user.name.includes('Restrepo')) {
+      user.name = 'Jessica Montenegro';
+      await user.save();
+    }
+
     const token = jwt.sign(
       { id: user._id, name: user.name, email: user.email, role: user.role },
       process.env.JWT_SECRET,
@@ -43,6 +49,12 @@ router.get('/me', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id).select('-passwordHash');
     if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
+
+    // Corrección automática en base de datos si tiene apellido antiguo
+    if (user.email === 'soporte.xessia@gmail.com' && user.name.includes('Restrepo')) {
+      user.name = 'Jessica Montenegro';
+      await user.save();
+    }
     res.json(user);
   } catch (err) {
     res.status(500).json({ error: 'Error del servidor.' });
