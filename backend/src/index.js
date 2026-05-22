@@ -42,7 +42,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Redirigir cualquier otra petición al index.html del frontend (para soporte de React Router/SPA)
-app.get('*', (req, res, next) => {
+app.get('/*splat', (req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
     return next();
   }
