@@ -24,58 +24,18 @@ function createWindow() {
     }
   });
 
-  // OTA Live Update & Local Offline Fallback Strategy
-  const remoteUrl = 'https://software-jessica.vercel.app';
-  let hasFallenBack = false;
-
-  // Listen for DOM ready to check for Vercel's 404 error page (successful TCP load but logically failed deployment)
-  mainWindow.webContents.on('dom-ready', () => {
-    if (hasFallenBack) return;
-    const currentUrl = mainWindow.webContents.getURL();
-    if (currentUrl.startsWith(remoteUrl)) {
-      mainWindow.webContents.executeJavaScript('document.title').then(title => {
-        if (title && (title.includes('404: NOT_FOUND') || title.includes('NOT_FOUND') || title.includes('Deployment Not Found') || title.includes('Deployment not found'))) {
-          console.log(`Detected Vercel 404 page ("${title}"). Triggering fallback to local offline index.html.`);
-          hasFallenBack = true;
-          mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html')).catch(err => {
-            console.error('Failed to load local offline fallback', err);
-          });
-        }
-      }).catch(err => {
-        console.error('Error reading page title:', err);
-      });
-    }
-  });
-
-  mainWindow.webContents.on('did-fail-load', (event, errorCode, errorDescription, validatedURL) => {
-    // Avoid double fallbacks or loops
-    if (hasFallenBack) return;
-    
-    // Only fall back to local file if the failure was for the remote URL or local dev server
-    if (validatedURL.startsWith(remoteUrl) || validatedURL.startsWith('http://localhost')) {
-      hasFallenBack = true;
-      console.log('OTA loading failed. Falling back to local offline index.html.');
-      mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html')).catch(err => {
-        console.error('Failed to load local offline fallback', err);
-      });
-    }
-  });
-
+  // Load local build file in production or connect to Vite dev server in development
   if (!app.isPackaged) {
     // In development, load local vite dev server first
     mainWindow.loadURL('http://localhost:5173').catch(() => {
-      if (!hasFallenBack) {
-        hasFallenBack = true;
-        mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
-      }
+      mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html')).catch(err => {
+        console.error('Failed to load local fallback index.html', err);
+      });
     });
   } else {
-    // In production, load Vercel live production URL for OTA updates, with automatic offline fallback
-    mainWindow.loadURL(remoteUrl).catch(() => {
-      if (!hasFallenBack) {
-        hasFallenBack = true;
-        mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
-      }
+    // In production, always load the local index.html directly
+    mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html')).catch(err => {
+      console.error('Failed to load local index.html', err);
     });
   }
 

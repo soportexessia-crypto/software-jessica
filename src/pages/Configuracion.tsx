@@ -134,25 +134,25 @@ export const Configuracion: React.FC = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
             <div>
-              <h3>Canal de Actualización en Vivo (OTA)</h3>
+              <h3>Información del Sistema y Conectividad</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12.5px', marginTop: '8px', backgroundColor: 'var(--bg-app)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>Conectividad de Red:</span>
                   <span className={`badge ${onlineStatus ? 'badge-confirmada' : 'badge-cancelada'}`} style={{ padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>
-                    {onlineStatus ? 'EN LÍNEA (Conectado)' : 'SIN CONEXIÓN (Modo Local)'}
+                    {onlineStatus ? 'CONECTADO A INTERNET' : 'TRABAJANDO SIN CONEXIÓN'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Origen de Carga:</span>
-                  <strong style={{ color: 'var(--primary)' }}>https://software-jessica.vercel.app</strong>
+                  <strong style={{ color: 'var(--primary)' }}>Local (Native Offline Bundle)</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Modo de Carga Activa:</span>
-                  <span style={{ color: 'var(--state-confirmada)', fontWeight: 600 }}>Cargado en Vivo con Fallback Offline</span>
+                  <span>Servidor API (Railway):</span>
+                  <span style={{ color: 'var(--state-confirmada)', fontWeight: 600 }}>https://software-jessica-production.up.railway.app</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Versión del Frontend:</span>
-                  <strong>v2.4.0 (OTA Activo)</strong>
+                  <span>Versión del Software:</span>
+                  <strong>v1.0.0 (Producción Local)</strong>
                 </div>
               </div>
             </div>
