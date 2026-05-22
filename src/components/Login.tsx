@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Shield, Mail, Lock, Loader2, Award } from 'lucide-react';
+import { Shield, Mail, Lock, Loader2 } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const { login } = useApp();
@@ -46,11 +46,6 @@ export const Login: React.FC = () => {
         </div>
 
         <div className="login-card">
-          <div className="clinic-badge">
-            <Award size={14} className="badge-icon" />
-            <span>Centro Odontológico Catalina EVA</span>
-          </div>
-
           <h2 className="login-title">Iniciar Sesión</h2>
           <p className="login-desc">Introduce tus credenciales para acceder al sistema administrativo.</p>
 
@@ -69,7 +64,7 @@ export const Login: React.FC = () => {
                 <input
                   type="email"
                   id="email"
-                  placeholder="ejemplo@catalinaeva.com"
+                  placeholder="ejemplo@xessia.com"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   disabled={loading}
