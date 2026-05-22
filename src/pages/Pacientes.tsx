@@ -91,39 +91,43 @@ export const Pacientes: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmitForm = (e: React.FormEvent) => {
+  const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (modalMode === 'create') {
-      const newP = addPatient({
-        name: formName,
-        document: formDoc,
-        phone: formPhone,
-        whatsapp: formPhone.replace(/[^0-9]/g, ''),
-        address: formAddress,
-        birthDate: formBirth,
-        gender: formGender,
-        email: formEmail,
-        eps: formEps,
-        allergies: formAllergies,
-        observations: formObs
-      });
-      setSelectedPatientId(newP.id);
-    } else {
-      updatePatient(selectedPatient.id, {
-        name: formName,
-        document: formDoc,
-        phone: formPhone,
-        whatsapp: formPhone.replace(/[^0-9]/g, ''),
-        address: formAddress,
-        birthDate: formBirth,
-        gender: formGender,
-        email: formEmail,
-        eps: formEps,
-        allergies: formAllergies,
-        observations: formObs
-      });
+    try {
+      if (modalMode === 'create') {
+        const newP = await addPatient({
+          name: formName,
+          document: formDoc,
+          phone: formPhone,
+          whatsapp: formPhone.replace(/[^0-9]/g, ''),
+          address: formAddress,
+          birthDate: formBirth,
+          gender: formGender,
+          email: formEmail,
+          eps: formEps,
+          allergies: formAllergies,
+          observations: formObs
+        });
+        setSelectedPatientId(newP.id);
+      } else {
+        await updatePatient(selectedPatient.id, {
+          name: formName,
+          document: formDoc,
+          phone: formPhone,
+          whatsapp: formPhone.replace(/[^0-9]/g, ''),
+          address: formAddress,
+          birthDate: formBirth,
+          gender: formGender,
+          email: formEmail,
+          eps: formEps,
+          allergies: formAllergies,
+          observations: formObs
+        });
+      }
+      setIsModalOpen(false);
+    } catch (err: any) {
+      console.error(err);
     }
-    setIsModalOpen(false);
   };
 
   const handleDelete = (id: string) => {

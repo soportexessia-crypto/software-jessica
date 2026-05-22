@@ -4,6 +4,7 @@ import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { SpotlightSearch } from './components/SpotlightSearch';
 import { QuickAppointmentModal } from './components/QuickAppointmentModal';
+import { Login } from './components/Login';
 import { CheckCircle, AlertTriangle, AlertCircle, Info, X } from 'lucide-react';
 
 // Pages
@@ -20,7 +21,7 @@ import { Configuracion } from './pages/Configuracion';
 const MainAppContent: React.FC = () => {
   const [activeModule, setActiveModule] = useState<string>('Inicio');
   const [isQuickApptOpen, setIsQuickApptOpen] = useState(false);
-  const { toasts, removeToast } = useApp();
+  const { toasts, removeToast, isAuthenticated, loading } = useApp();
 
   // Global search navigation callback
   const handleSpotlightNavigation = (module: string, param?: string) => {
@@ -55,6 +56,49 @@ const MainAppContent: React.FC = () => {
         return <Dashboard onNavigateToModule={handleSpotlightNavigation} />;
     }
   };
+
+  if (loading) {
+    return (
+      <div className="app-loading-screen">
+        <img src="/img/Logo.png" alt="XESSIA" className="app-loading-logo" />
+        <div className="app-loading-spinner"></div>
+        <div className="app-loading-text">Conectando a XESSIA Cloud...</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        <Login />
+        {/* Floating Toast Notifications stack */}
+        <div className="toast-container">
+          {toasts.map(toast => {
+            let Icon = Info;
+            if (toast.type === 'success') Icon = CheckCircle;
+            else if (toast.type === 'warning') Icon = AlertTriangle;
+            else if (toast.type === 'error') Icon = AlertCircle;
+            
+            return (
+              <div key={toast.id} className={`toast ${toast.type}`}>
+                <div className={`toast-icon-wrapper ${toast.type}`}>
+                  <Icon size={18} />
+                </div>
+                <div className="toast-message">{toast.message}</div>
+                <button 
+                  className="toast-close-btn" 
+                  onClick={() => removeToast(toast.id)}
+                  title="Cerrar"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </>
+    );
+  }
 
   return (
     <div className="app-container">

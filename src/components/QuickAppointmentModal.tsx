@@ -99,53 +99,58 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     let patientId = selectedPatientId;
 
-    if (patientMode === 'nuevo') {
-      if (!newPatientName || !newPatientDoc || !newPatientPhone) {
-        showToast('Por favor complete todos los datos del nuevo paciente.', 'warning');
+    try {
+      if (patientMode === 'nuevo') {
+        if (!newPatientName || !newPatientDoc || !newPatientPhone) {
+          showToast('Por favor complete todos los datos del nuevo paciente.', 'warning');
+          return;
+        }
+        
+        const newPat = await addPatient({
+          name: newPatientName,
+          document: newPatientDoc,
+          phone: newPatientPhone,
+          whatsapp: newPatientPhone.replace(/[^0-9]/g, ''),
+          address: '',
+          birthDate: '1990-01-01',
+          gender: 'Otro',
+          email: '',
+          eps: 'Particular',
+          allergies: 'Ninguna',
+          observations: 'Paciente registrado vía Cita Rápida'
+        });
+        patientId = newPat.id;
+      }
+
+      if (!patientId || !selectedDoctorId || !selectedProcedureCode || !date || !time) {
+        showToast('Por favor complete todos los campos.', 'warning');
         return;
       }
-      
-      const newPat = addPatient({
-        name: newPatientName,
-        document: newPatientDoc,
-        phone: newPatientPhone,
-        whatsapp: newPatientPhone.replace(/[^0-9]/g, ''),
-        address: '',
-        birthDate: '1990-01-01',
-        gender: 'Otro',
-        email: '',
-        eps: 'Particular',
-        allergies: 'Ninguna',
-        observations: 'Paciente registrado vía Cita Rápida'
+
+      await addAppointment({
+        patientId,
+        doctorId: selectedDoctorId,
+        procedureCode: selectedProcedureCode,
+        date,
+        time,
+        duration,
+        status: 'confirmada',
+        notes
       });
-      patientId = newPat.id;
+
+      setSuccess(true);
+      setTimeout(() => {
+        onClose();
+      }, 1500);
+    } catch (err: any) {
+      console.error(err);
+      showToast(err.message || 'Error al procesar la cita rápida', 'error');
     }
-
-    if (!patientId || !selectedDoctorId || !selectedProcedureCode || !date || !time) {
-      showToast('Por favor complete todos los campos.', 'warning');
-      return;
-    }
-
-    addAppointment({
-      patientId,
-      doctorId: selectedDoctorId,
-      procedureCode: selectedProcedureCode,
-      date,
-      time,
-      duration,
-      status: 'confirmada',
-      notes
-    });
-
-    setSuccess(true);
-    setTimeout(() => {
-      onClose();
-    }, 1500);
   };
 
   return (

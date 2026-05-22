@@ -33,10 +33,10 @@ router.post('/', async (req, res) => {
     ]);
 
     // 1. Usuario: Jessica Restrepo (Secretaria)
-    const passwordHash = await bcrypt.hash('xessia2024', 10);
+    const passwordHash = await bcrypt.hash('Gaby12873*', 10);
     const user = await User.create({
       name: 'Jessica Restrepo',
-      email: 'jessica@catalinaevaodontologia.com',
+      email: 'soporte.xessia@gmail.com',
       passwordHash,
       role: 'Secretaria'
     });
@@ -77,8 +77,8 @@ router.post('/', async (req, res) => {
         patients: patients.length
       },
       loginCredentials: {
-        email: 'jessica@catalinaevaodontologia.com',
-        password: 'xessia2024'
+        email: 'soporte.xessia@gmail.com',
+        password: 'Gaby12873*'
       }
     });
   } catch (err) {
