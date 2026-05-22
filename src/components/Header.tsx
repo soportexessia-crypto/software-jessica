@@ -14,9 +14,19 @@ export const Header: React.FC<HeaderProps> = ({ activeModule, onQuickAppointment
 
   return (
     <header className="app-header">
-      {/* Title */}
-      <div>
-        <h1 style={{ fontSize: '22px', fontWeight: 800 }}>{activeModule}</h1>
+      {/* Brand & Module Title */}
+      <div className="header-brand-container">
+        {/* Mobile-only brand identifier */}
+        <div className="header-mobile-brand">
+          <img 
+            src="img/Logo.png" 
+            alt="XESSIA" 
+            className="header-mobile-logo"
+          />
+          <span className="header-mobile-brand-name">XESSIA</span>
+          <span className="header-mobile-separator">|</span>
+        </div>
+        <h1 className="header-module-title">{activeModule}</h1>
       </div>
 
       {/* Global Spotight Search Bar trigger */}

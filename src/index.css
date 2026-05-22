@@ -281,6 +281,55 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+.header-brand-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.header-mobile-brand {
+  display: none; /* Oculto por defecto en desktop */
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.header-mobile-logo {
+  height: 24px;
+  width: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.header-mobile-brand-name {
+  font-family: var(--font-logo);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--secondary);
+  flex-shrink: 0;
+}
+
+.header-mobile-separator {
+  color: var(--border-light);
+  font-size: 16px;
+  font-weight: 300;
+  flex-shrink: 0;
+}
+
+.header-module-title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .header-left {
   display: flex;
   align-items: center;
@@ -1367,6 +1416,16 @@ h3 {
   .app-header {
     padding: 0 12px;
     gap: 12px;
+  }
+  
+  .header-mobile-brand {
+    display: flex !important;
+  }
+  
+  .header-module-title {
+    font-size: 15px !important;
+    color: var(--text-muted) !important;
+    font-weight: 600 !important;
   }
   
   .page-content {
