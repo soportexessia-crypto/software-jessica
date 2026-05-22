@@ -16,8 +16,8 @@ export const Procedimientos: React.FC = () => {
   const [formCode, setFormCode] = useState('');
   const [formName, setFormName] = useState('');
   const [formCategory, setFormCategory] = useState<Procedure['category']>('CONSULTAS');
-  const [formDuration, setFormDuration] = useState(30);
-  const [formPrice, setFormPrice] = useState(0);
+  const [formDuration, setFormDuration] = useState<number | ''>(30);
+  const [formPrice, setFormPrice] = useState<number | ''>(0);
   const [formColor, setFormColor] = useState('azul');
   const [formSpecialist, setFormSpecialist] = useState('Todos');
   const [formAlert, setFormAlert] = useState('');
@@ -54,7 +54,7 @@ export const Procedimientos: React.FC = () => {
     setFormName('');
     setFormCategory('CONSULTAS');
     setFormDuration(30);
-    setFormPrice(0);
+    setFormPrice('');
     setFormColor('azul');
     setFormSpecialist('Todos');
     setFormAlert('');
@@ -65,11 +65,14 @@ export const Procedimientos: React.FC = () => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    const finalDuration = formDuration === '' ? 30 : formDuration;
+    const finalPrice = formPrice === '' ? 0 : formPrice;
+
     if (editingProc) {
       editingProc.name = formName;
       editingProc.category = formCategory;
-      editingProc.duration = formDuration;
-      editingProc.price = formPrice;
+      editingProc.duration = finalDuration;
+      editingProc.price = finalPrice;
       editingProc.color = formColor;
       editingProc.specialist = formSpecialist;
       editingProc.alert = formAlert || undefined;
@@ -80,8 +83,8 @@ export const Procedimientos: React.FC = () => {
         code: formCode,
         name: formName,
         category: formCategory,
-        duration: formDuration,
-        price: formPrice,
+        duration: finalDuration,
+        price: finalPrice,
         color: formColor,
         specialist: formSpecialist,
         alert: formAlert || undefined,
@@ -322,7 +325,7 @@ export const Procedimientos: React.FC = () => {
                       min={5}
                       max={360}
                       value={formDuration}
-                      onChange={(e) => setFormDuration(Number(e.target.value))}
+                      onChange={(e) => setFormDuration(e.target.value === '' ? '' : Number(e.target.value))}
                     />
                   </div>
                   <div className="form-group">
@@ -333,7 +336,7 @@ export const Procedimientos: React.FC = () => {
                       required 
                       min={0}
                       value={formPrice}
-                      onChange={(e) => setFormPrice(Number(e.target.value))}
+                      onChange={(e) => setFormPrice(e.target.value === '' ? '' : Number(e.target.value))}
                     />
                   </div>
                 </div>
