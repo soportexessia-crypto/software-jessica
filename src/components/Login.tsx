@@ -40,7 +40,7 @@ export const Login: React.FC = () => {
 
       <div className="login-card-wrapper">
         <div className="login-header-logo">
-          <img src="/img/Logo.png" alt="Xessia Logo" className="login-logo-img" />
+          <img src="img/Logo.png" alt="Xessia Logo" className="login-logo-img" />
           <h1 className="login-brand-name">XESSIA</h1>
           <p className="login-subtitle">Gestión Odontológica Inteligente</p>
         </div>

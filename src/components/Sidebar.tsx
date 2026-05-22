@@ -36,7 +36,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeModule, setActiveModule 
         {/* Desktop: isotipo + nombre de marca */}
         <div className="logo-full" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <img 
-            src="/img/Logo.png" 
+            src="img/Logo.png" 
             alt="XESSIA" 
             style={{ 
               height: '34px', 
@@ -51,7 +51,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeModule, setActiveModule 
         <div className="logo-compact" style={{ width: '100%', justifyContent: 'center' }}>
           <div className="logo-icon" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <img 
-              src="/img/Logo.png" 
+              src="img/Logo.png" 
               alt="XESSIA" 
               style={{ width: '28px', height: '28px', objectFit: 'contain' }} 
             />

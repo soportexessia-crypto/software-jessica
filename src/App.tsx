@@ -60,7 +60,7 @@ const MainAppContent: React.FC = () => {
   if (loading) {
     return (
       <div className="app-loading-screen">
-        <img src="/img/Logo.png" alt="XESSIA" className="app-loading-logo" />
+        <img src="img/Logo.png" alt="XESSIA" className="app-loading-logo" />
         <div className="app-loading-spinner"></div>
         <div className="app-loading-text">Conectando a XESSIA Cloud...</div>
       </div>
