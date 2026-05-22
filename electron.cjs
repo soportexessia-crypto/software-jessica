@@ -10,6 +10,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 700,
     title: "XESSIA Software Jessica",
+    icon: path.join(__dirname, 'dist', 'img', 'Logo.ico'),
     show: false,
     webPreferences: {
       nodeIntegration: false,

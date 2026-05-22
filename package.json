@@ -49,7 +49,7 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "public/img/Logo.png",
+      "icon": "public/img/Logo.ico",
       "signAndEditExecutable": false
     },
     "nsis": {
