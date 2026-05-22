@@ -26,3 +26,7 @@ backend/uploads/
 *.njsproj
 *.sln
 *.sw?
+
+# Electron builder outputs
+release/
+dist-electron/
