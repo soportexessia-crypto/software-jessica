@@ -89,7 +89,7 @@ interface AppContextType {
   loading: boolean;
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  refreshData: () => Promise<void>;
+  refreshData: (isBackground?: boolean) => Promise<void>;
   
   // Toasts
   toasts: Toast[];
@@ -155,7 +155,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   // Helper to load all clinical data from Railway cloud API
-  const refreshData = async () => {
+  const refreshData = async (isBackground = false) => {
     try {
       const [docsData, procsData, patsData, apptsData, finsData] = await Promise.all([
         api.get('/doctors'),
@@ -172,7 +172,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setFinancials(finsData.map((f: any) => ({ ...f, id: f._id })));
     } catch (err: any) {
       console.error('Error refreshing data from server:', err);
-      showToast('Error de sincronización con la nube de XESSIA.', 'error');
+      if (!isBackground) {
+        showToast('Error de sincronización con la nube de XESSIA.', 'error');
+      }
     }
   };
 
@@ -202,6 +204,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     initAuth();
   }, []);
+
+  // Periodic polling/refresh every 4 seconds when authenticated
+  useEffect(() => {
+    if (!isAuthenticated) return;
+
+    const intervalId = setInterval(() => {
+      refreshData(true);
+    }, 4000);
+
+    return () => clearInterval(intervalId);
+  }, [isAuthenticated]);
 
   // Auth Operations
   const login = async (email: string, password: string): Promise<boolean> => {
