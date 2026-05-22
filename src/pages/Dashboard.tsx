@@ -30,6 +30,22 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToModule }) => {
 
   const [simulatedWhatsApp, setSimulatedWhatsApp] = useState<{ message: string; phone: string } | null>(null);
 
+  // Tomorrow's date string calculation
+  const getTomorrowDateString = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const day = String(tomorrow.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+  const tomorrowStr = getTomorrowDateString();
+  const unconfirmedTomorrowCount = appointments.filter(a => a.date === tomorrowStr && a.status === 'pendiente').length;
+
+  // Patient with dynamic debt
+  const debtorPatients = patients.filter(p => p.debt > 0).sort((a, b) => b.debt - a.debt);
+  const topDebtor = debtorPatients[0];
+
   const getTodayDateString = () => {
     const today = new Date();
     const year = today.getFullYear();
@@ -312,19 +328,25 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToModule }) => {
           <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <h2>Recordatorios Pendientes</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', fontSize: '13px' }}>
-              
-              <div style={{ backgroundColor: 'var(--state-pendiente-bg)', color: 'var(--state-pendiente)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid #fef3c7' }}>
-                <strong>Confirmar citas de mañana:</strong> Hay 3 pacientes que no han confirmado cita para mañana.
-              </div>
+              {unconfirmedTomorrowCount === 0 && !topDebtor ? (
+                <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-light)', fontSize: '13px' }}>
+                  No hay recordatorios urgentes hoy.
+                </div>
+              ) : (
+                <>
+                  {unconfirmedTomorrowCount > 0 && (
+                    <div style={{ backgroundColor: 'var(--state-pendiente-bg)', color: 'var(--state-pendiente)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid #fef3c7' }}>
+                      <strong>Confirmar citas de mañana:</strong> Hay {unconfirmedTomorrowCount} paciente{unconfirmedTomorrowCount > 1 ? 's que no han' : ' que no ha'} confirmado cita para mañana.
+                    </div>
+                  )}
 
-              <div style={{ backgroundColor: 'var(--state-cancelada-bg)', color: 'var(--state-cancelada)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid #fee2e2' }}>
-                <strong>Pacientes con saldo:</strong> <strong>Juan Sebastián Montoya</strong> tiene saldo pendiente de $150,000. Recordar cobro.
-              </div>
-              
-              <div style={{ backgroundColor: 'var(--bg-hover)', color: 'var(--text-muted)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)' }}>
-                <strong>Suministros:</strong> Dra. Valentina reporta bajo inventario en alambres de ortodoncia.
-              </div>
-
+                  {topDebtor && (
+                    <div style={{ backgroundColor: 'var(--state-cancelada-bg)', color: 'var(--state-cancelada)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid #fee2e2' }}>
+                      <strong>Pacientes con saldo:</strong> <strong>{topDebtor.name}</strong> tiene saldo pendiente de ${topDebtor.debt.toLocaleString('es-CO')}. Recordar cobro.
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           </div>
 

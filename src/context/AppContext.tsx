@@ -108,6 +108,10 @@ interface AppContextType {
   
   addFinancialRecord: (record: Omit<FinancialRecord, 'id' | 'date'> & { date?: string }) => Promise<void>;
   
+  addDoctor: (doc: Omit<Doctor, 'id' | 'avatar'>) => Promise<Doctor>;
+  updateDoctor: (id: string, doc: Partial<Doctor>) => Promise<void>;
+  deleteDoctor: (id: string) => Promise<void>;
+  
   // Quick Utilities
   getPatientById: (id: string) => Patient | undefined;
   getDoctorById: (id: string) => Doctor | undefined;
@@ -351,6 +355,58 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const addDoctor = async (newDoc: Omit<Doctor, 'id' | 'avatar'>): Promise<Doctor> => {
+    try {
+      const cleanName = newDoc.name.replace(/^(Dr\.|Dra\.)\s+/i, '').trim();
+      const parts = cleanName.split(/\s+/);
+      const avatar = parts.length > 1 
+        ? (parts[0][0] + parts[1][0]).toUpperCase()
+        : parts[0].substring(0, 2).toUpperCase();
+      
+      const savedDoc = await api.post('/doctors', { ...newDoc, avatar });
+      const mapped: Doctor = { ...savedDoc, id: savedDoc._id };
+      setDoctors(prev => [...prev, mapped]);
+      showToast('Especialista registrado correctamente', 'success');
+      return mapped;
+    } catch (err: any) {
+      showToast(err.message || 'Error al guardar especialista', 'error');
+      throw err;
+    }
+  };
+
+  const updateDoctor = async (id: string, updatedFields: Partial<Doctor>): Promise<void> => {
+    try {
+      let avatarUpdate = {};
+      if (updatedFields.name) {
+        const cleanName = updatedFields.name.replace(/^(Dr\.|Dra\.)\s+/i, '').trim();
+        const parts = cleanName.split(/\s+/);
+        const avatar = parts.length > 1 
+          ? (parts[0][0] + parts[1][0]).toUpperCase()
+          : parts[0].substring(0, 2).toUpperCase();
+        avatarUpdate = { avatar };
+      }
+      
+      const savedDoc = await api.patch(`/doctors/${id}`, { ...updatedFields, ...avatarUpdate });
+      const mapped: Doctor = { ...savedDoc, id: savedDoc._id };
+      setDoctors(prev => prev.map(d => d.id === id ? mapped : d));
+      showToast('Especialista actualizado correctamente', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Error al actualizar especialista', 'error');
+      throw err;
+    }
+  };
+
+  const deleteDoctor = async (id: string): Promise<void> => {
+    try {
+      await api.delete(`/doctors/${id}`);
+      setDoctors(prev => prev.filter(d => d.id !== id));
+      showToast('Especialista desactivado correctamente', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Error al desactivar especialista', 'error');
+      throw err;
+    }
+  };
+
   const getPatientById = (id: string) => patients.find(p => p.id === id);
   const getDoctorById = (id: string) => doctors.find(d => d.id === id);
   const getProcedureByCode = (code: string) => procedures.find(pr => pr.code === code);
@@ -385,6 +441,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       deleteAppointment,
       
       addFinancialRecord,
+      
+      addDoctor,
+      updateDoctor,
+      deleteDoctor,
       
       getPatientById,
       getDoctorById,
