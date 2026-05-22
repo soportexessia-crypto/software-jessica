@@ -2,9 +2,30 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
+const { execSync } = require('child_process');
 const connectDB = require('./db');
 
 const app = express();
+
+// Autoevaluación y compilación dinámica del frontend (Self-healing)
+const distPath = path.join(__dirname, '../../dist');
+const indexPath = path.join(distPath, 'index.html');
+console.log('🔍 Checking frontend build at:', indexPath);
+if (!fs.existsSync(indexPath)) {
+  console.log('⚠️ Frontend build not found! Attempting to build dynamically on startup...');
+  try {
+    execSync('npm run build', {
+      cwd: path.join(__dirname, '../..'),
+      stdio: 'inherit'
+    });
+    console.log('✅ Dynamic frontend build completed successfully!');
+  } catch (error) {
+    console.error('❌ Dynamic frontend build failed:', error.message);
+  }
+} else {
+  console.log('✅ Frontend build found at:', indexPath);
+}
 
 // Conectar a MongoDB Atlas
 connectDB();
@@ -38,11 +59,11 @@ app.use('/api/seed',         require('./routes/seed'));
 
 // Health check
 app.get('/api/health', (req, res) => {
-  res.json({ status: 'ok', version: '1.0.1-test', app: 'XESSIA Backend' });
+  res.json({ status: 'ok', version: '1.0.1', app: 'XESSIA Backend' });
 });
 
 // Redirigir cualquier otra petición al index.html del frontend (para soporte de React Router/SPA)
-app.get('/*splat', (req, res, next) => {
+app.get(['/', '/*splat'], (req, res, next) => {
   if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
     return next();
   }
