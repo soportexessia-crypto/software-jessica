@@ -13,7 +13,7 @@ const config: CapacitorConfig = {
       androidScaleType: 'CENTER_CROP',
       showSpinner: false
     }
-  }
+  },
 };
 
 export default config;

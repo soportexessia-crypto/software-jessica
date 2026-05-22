@@ -5,7 +5,7 @@ import { Header } from './components/Header';
 import { SpotlightSearch } from './components/SpotlightSearch';
 import { QuickAppointmentModal } from './components/QuickAppointmentModal';
 import { Login } from './components/Login';
-import { CheckCircle, AlertTriangle, AlertCircle, Info, X } from 'lucide-react';
+import { CheckCircle, AlertTriangle, AlertCircle, Info, X, Download, Laptop, Smartphone } from 'lucide-react';
 
 // Pages
 import { Dashboard } from './pages/Dashboard';
@@ -22,6 +22,44 @@ const MainAppContent: React.FC = () => {
   const [activeModule, setActiveModule] = useState<string>('Inicio');
   const [isQuickApptOpen, setIsQuickApptOpen] = useState(false);
   const { toasts, removeToast, isAuthenticated, loading } = useApp();
+
+  const CLIENT_VERSION = '1.0.0';
+  const [checkingVersion, setCheckingVersion] = useState(true);
+  const [isForceUpdateRequired, setIsForceUpdateRequired] = useState(false);
+  const [versionConfig, setVersionConfig] = useState<any>(null);
+
+  React.useEffect(() => {
+    const checkVersion = async () => {
+      try {
+        const { api } = await import('./services/api');
+        const config = await api.get('/system/version');
+        setVersionConfig(config);
+        
+        const isVersionLower = (current: string, required: string): boolean => {
+          const currentParts = current.split('.').map(Number);
+          const requiredParts = required.split('.').map(Number);
+          for (let i = 0; i < Math.max(currentParts.length, requiredParts.length); i++) {
+            const c = currentParts[i] || 0;
+            const r = requiredParts[i] || 0;
+            if (c < r) return true;
+            if (c > r) return false;
+          }
+          return false;
+        };
+
+        if (isVersionLower(CLIENT_VERSION, config.minVersion)) {
+          setIsForceUpdateRequired(true);
+        }
+      } catch (err) {
+        // Fallback robusto offline
+        console.warn('Fallo en verificación de versión (modo offline o servidor inaccesible):', err);
+      } finally {
+        setCheckingVersion(false);
+      }
+    };
+
+    checkVersion();
+  }, []);
 
   // Global search navigation callback
   const handleSpotlightNavigation = (module: string, param?: string) => {
@@ -57,12 +95,89 @@ const MainAppContent: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (loading || checkingVersion) {
     return (
       <div className="app-loading-screen">
         <img src="img/Logo.png" alt="XESSIA" className="app-loading-logo" />
         <div className="app-loading-spinner"></div>
         <div className="app-loading-text">Conectando a XESSIA Cloud...</div>
+      </div>
+    );
+  }
+
+  if (isForceUpdateRequired && versionConfig) {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isAndroid = /android/i.test(userAgent);
+    const isWindows = /windows/i.test(userAgent);
+
+    return (
+      <div className="update-block-screen">
+        <div className="update-block-container">
+          <img src="img/Logo.png" alt="XESSIA" className="update-block-logo" />
+          
+          <div className="update-block-icon">
+            <AlertTriangle size={32} />
+          </div>
+
+          <h2 className="update-block-title">Actualización Obligatoria</h2>
+          
+          <p className="update-block-desc">
+            Hemos realizado mejoras críticas de seguridad y rendimiento en XESSIA Cloud. 
+            Para continuar garantizando la integridad de tus datos clínicos, debes actualizar la aplicación.
+          </p>
+
+          <div className="update-block-versions">
+            <div className="update-version-tag current">
+              Versión instalada: <strong>v{CLIENT_VERSION}</strong>
+            </div>
+            <div className="update-version-divider"></div>
+            <div className="update-version-tag required">
+              Versión requerida: <strong>v{versionConfig.minVersion}</strong>
+            </div>
+          </div>
+
+          <div className="update-download-grid">
+            {/* Windows Download Card */}
+            <div 
+              className={`update-download-card ${isWindows ? 'recommended' : ''}`}
+              onClick={() => window.open(versionConfig.downloadWindows, '_blank')}
+            >
+              {isWindows && (
+                <span className="update-recommendation-badge">PC de la Clínica</span>
+              )}
+              <div className="update-card-icon">
+                <Laptop size={24} />
+              </div>
+              <h3 className="update-card-title">XESSIA para Windows</h3>
+              <p className="update-card-desc">
+                Instalador ejecutable de escritorio (.exe) optimizado para el computador principal.
+              </p>
+              <button className="update-download-btn">
+                <Download size={14} /> Descargar para PC
+              </button>
+            </div>
+
+            {/* Android Download Card */}
+            <div 
+              className={`update-download-card ${isAndroid ? 'recommended' : ''}`}
+              onClick={() => window.open(versionConfig.downloadAndroid, '_blank')}
+            >
+              {isAndroid && (
+                <span className="update-recommendation-badge">Celular de la Clínica</span>
+              )}
+              <div className="update-card-icon">
+                <Smartphone size={24} />
+              </div>
+              <h3 className="update-card-title">XESSIA para Android</h3>
+              <p className="update-card-desc">
+                Paquete de aplicación nativa (.apk) optimizado para dispositivos móviles y tablets.
+              </p>
+              <button className="update-download-btn">
+                <Download size={14} /> Descargar APK
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }

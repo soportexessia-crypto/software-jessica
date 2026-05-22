@@ -75,10 +75,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ activeModule, setActiveModule 
       <div className="sidebar-footer">
         <div className="user-badge">
           <div className="user-avatar" style={{ backgroundColor: 'var(--primary)', color: 'white' }}>
-            JR
+            JM
           </div>
           <div className="user-info">
-            <span className="user-name">Jessica Restrepo</span>
+            <span className="user-name">Jessica Montenegro</span>
             <span className="user-role">Secretaria</span>
           </div>
         </div>

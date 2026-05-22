@@ -264,8 +264,9 @@ export const Procedimientos: React.FC = () => {
       </div>
 
       {/* CONFIGURATION MODAL */}
+      {/* ⚠️ SIN onClick en modal-overlay — solo se cierra con botones explícitos */}
       {isModalOpen && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}>
+        <div className="modal-overlay">
           <div className="modal-content fade-in" style={{ maxWidth: '500px' }}>
             <div className="modal-header">
               <h2>{editingProc ? 'Editar Tratamiento' : 'Registrar Nuevo Tratamiento'}</h2>

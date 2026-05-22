@@ -18,6 +18,7 @@ const AppointmentSchema = new mongoose.Schema({
     default: 'deuda'
   },
   paidAmount: { type: Number, default: 0 },
+  discount:   { type: Number, default: 0 },
   notes:      { type: String, default: '' }
 }, { timestamps: true });
 

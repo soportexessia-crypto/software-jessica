@@ -32,10 +32,10 @@ router.post('/', async (req, res) => {
       Financial.deleteMany({})
     ]);
 
-    // 1. Usuario: Jessica Restrepo (Secretaria)
+    // 1. Usuario: Jessica Montenegro (Secretaria)
     const passwordHash = await bcrypt.hash('Gaby12873*', 10);
     const user = await User.create({
-      name: 'Jessica Restrepo',
+      name: 'Jessica Montenegro',
       email: 'soporte.xessia@gmail.com',
       passwordHash,
       role: 'Secretaria'

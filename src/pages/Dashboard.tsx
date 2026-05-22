@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Users
 } from 'lucide-react';
+import { format12h } from '../components/QuickAppointmentModal';
 
 interface DashboardProps {
   onNavigateToModule: (module: string, param?: string) => void;
@@ -70,7 +71,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToModule }) => {
   };
 
   const handleSendWhatsApp = (pat: Patient, appt: Appointment) => {
-    const time = appt.time;
+    const time = format12h(appt.time);
     const msg = `Hola *${pat.name}*, le recordamos su cita odontológica en *Centro Odontológico Catalina EVA* programada para hoy a las *${time}*. ¿Confirma su asistencia?`;
     
     // Clean phone number (only digits)
@@ -160,7 +161,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToModule }) => {
                         <div className="appt-info-section">
                           {/* Time slot */}
                           <div className="appt-time-slot">
-                            <span style={{ fontSize: '16px', fontWeight: 800, color: 'var(--secondary)' }}>{appt.time}</span>
+                            <span style={{ fontSize: '16px', fontWeight: 800, color: 'var(--secondary)' }}>{format12h(appt.time)}</span>
                             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{proc.duration} min</span>
                           </div>
 
@@ -312,7 +313,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigateToModule }) => {
                       >
                         <div>
                           <div style={{ fontWeight: 700, fontSize: '13px' }}>{pat.name}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cita: {appt.time}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Cita: {format12h(appt.time)}</div>
                         </div>
                         <span className="badge badge-enproceso" style={{ fontSize: '10px' }}>
                           {appt.status === 'enproceso' ? 'En Sillón' : 'En Espera'}

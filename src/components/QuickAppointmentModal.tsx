@@ -7,6 +7,96 @@ interface QuickAppointmentModalProps {
   onClose: () => void;
 }
 
+// ==================== HELPERS DE TIEMPO 12 HORAS ====================
+
+/** Convierte HH:MM (24h) a '9:30 AM' (12h display) */
+export function format12h(time24: string): string {
+  if (!time24 || !time24.includes(':')) return time24;
+  const [hStr, mStr] = time24.split(':');
+  const h = parseInt(hStr, 10);
+  const m = parseInt(mStr, 10);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return `${h12}:${String(m).padStart(2, '0')} ${period}`;
+}
+
+/** Convierte selección 12h a HH:MM (24h) para MongoDB */
+export function parse24h(hour12: string, minute: string, period: string): string {
+  let h = parseInt(hour12, 10);
+  if (period === 'AM') {
+    if (h === 12) h = 0;
+  } else {
+    if (h !== 12) h += 12;
+  }
+  return `${String(h).padStart(2, '0')}:${minute}`;
+}
+
+/** Extrae hora12, minuto y período desde HH:MM */
+function splitTime12(time24: string): { hour12: string; minute: string; period: string } {
+  if (!time24 || !time24.includes(':')) return { hour12: '9', minute: '00', period: 'AM' };
+  const [hStr, mStr] = time24.split(':');
+  const h = parseInt(hStr, 10);
+  const period = h >= 12 ? 'PM' : 'AM';
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return { hour12: String(h12), minute: mStr.padStart(2, '0'), period };
+}
+
+// ==================== COMPONENTE SELECTOR DE HORA 12H ====================
+
+interface TimeSelector12hProps {
+  value: string; // HH:MM format (24h)
+  onChange: (time24: string) => void;
+  required?: boolean;
+}
+
+export const TimeSelector12h: React.FC<TimeSelector12hProps> = ({ value, onChange, required }) => {
+  const { hour12, minute, period } = splitTime12(value);
+
+  const handleChange = (newHour: string, newMin: string, newPeriod: string) => {
+    onChange(parse24h(newHour, newMin, newPeriod));
+  };
+
+  const hours = Array.from({ length: 12 }, (_, i) => String(i + 1));
+  const minutes = ['00', '05', '10', '15', '20', '25', '30', '35', '40', '45', '50', '55'];
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: '6px' }}>
+      <select
+        className="form-select"
+        required={required}
+        value={hour12}
+        onChange={e => handleChange(e.target.value, minute, period)}
+        style={{ textAlign: 'center', fontWeight: 700 }}
+      >
+        {hours.map(h => <option key={h} value={h}>{h}</option>)}
+      </select>
+      <select
+        className="form-select"
+        value={minute}
+        onChange={e => handleChange(hour12, e.target.value, period)}
+        style={{ textAlign: 'center', fontWeight: 700 }}
+      >
+        {minutes.map(m => <option key={m} value={m}>:{m}</option>)}
+      </select>
+      <select
+        className="form-select"
+        value={period}
+        onChange={e => handleChange(hour12, minute, e.target.value)}
+        style={{
+          textAlign: 'center',
+          fontWeight: 800,
+          color: period === 'AM' ? 'var(--primary)' : 'var(--secondary)',
+        }}
+      >
+        <option value="AM">AM</option>
+        <option value="PM">PM</option>
+      </select>
+    </div>
+  );
+};
+
+// ==================== COMPONENTE PRINCIPAL ====================
+
 export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ isOpen, onClose }) => {
   const { 
     patients, 
@@ -28,25 +118,51 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [selectedProcedureCode, setSelectedProcedureCode] = useState('');
   const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
+  const [time, setTime] = useState('09:00');
   const [notes, setNotes] = useState('');
   const [duration, setDuration] = useState(30);
   const [price, setPrice] = useState(0);
+  const [discount, setDiscount] = useState(0);
 
   // Alerts states
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
   const [doctorMismatch, setDoctorMismatch] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  // Reset fields
+  // Reset fields & restore draft
   useEffect(() => {
     if (isOpen) {
+      const saved = localStorage.getItem('xessia_draft_quick_appt');
+      if (saved) {
+        try {
+          const draft = JSON.parse(saved);
+          setPatientMode(draft.patientMode || 'existente');
+          setSelectedPatientId(draft.selectedPatientId || '');
+          setNewPatientName(draft.newPatientName || '');
+          setNewPatientDoc(draft.newPatientDoc || '');
+          setNewPatientPhone(draft.newPatientPhone || '');
+          setSelectedDoctorId(draft.selectedDoctorId || doctors[0]?.id || '');
+          setSelectedProcedureCode(draft.selectedProcedureCode || procedures[0]?.code || '');
+          setDate(draft.date || '');
+          setTime(draft.time || '09:00');
+          setNotes(draft.notes || '');
+          setDiscount(draft.discount || 0);
+          setAlertMsg(null);
+          setDoctorMismatch(false);
+          setSuccess(false);
+          return;
+        } catch (e) {
+          console.error('Error parsing draft quick appt', e);
+        }
+      }
+
       setSelectedPatientId('');
       setNewPatientName('');
       setNewPatientDoc('');
       setNewPatientPhone('');
       setSelectedDoctorId(doctors[0]?.id || '');
       setSelectedProcedureCode(procedures[0]?.code || '');
+      setDiscount(0);
       
       // Default to today's date
       const today = new Date();
@@ -59,6 +175,26 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
       setSuccess(false);
     }
   }, [isOpen, doctors, procedures]);
+
+  // Sync draft to localStorage
+  useEffect(() => {
+    if (isOpen && !success) {
+      const draft = {
+        patientMode,
+        selectedPatientId,
+        newPatientName,
+        newPatientDoc,
+        newPatientPhone,
+        selectedDoctorId,
+        selectedProcedureCode,
+        date,
+        time,
+        notes,
+        discount
+      };
+      localStorage.setItem('xessia_draft_quick_appt', JSON.stringify(draft));
+    }
+  }, [isOpen, success, patientMode, selectedPatientId, newPatientName, newPatientDoc, newPatientPhone, selectedDoctorId, selectedProcedureCode, date, time, notes, discount]);
 
   // Handle auto calculations and alerts based on chosen Procedure
   useEffect(() => {
@@ -137,12 +273,14 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
         doctorId: selectedDoctorId,
         procedureCode: selectedProcedureCode,
         date,
-        time,
+        time, // Siempre HH:MM (24h) para MongoDB
         duration,
         status: 'confirmada',
+        discount,
         notes
       });
 
+      localStorage.removeItem('xessia_draft_quick_appt');
       setSuccess(true);
       setTimeout(() => {
         onClose();
@@ -154,7 +292,8 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
   };
 
   return (
-    <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+    // ⚠️ SIN onClick en el modal-overlay — el modal SOLO se cierra con botones explícitos
+    <div className="modal-overlay">
       <div className="modal-content fade-in" style={{ maxWidth: '550px' }}>
         <div className="modal-header">
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -289,11 +428,33 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
                 </select>
               </div>
 
+              {/* Discount Selection */}
+              <div className="form-group">
+                <label className="form-label">Porcentaje de Descuento</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <input 
+                    type="number" 
+                    className="form-input" 
+                    min={0}
+                    max={100}
+                    value={discount || ''}
+                    onChange={(e) => {
+                      const val = e.target.value === '' ? 0 : Number(e.target.value);
+                      setDiscount(val < 0 ? 0 : val > 100 ? 100 : val);
+                    }}
+                    placeholder="0"
+                    style={{ flex: 1 }}
+                  />
+                  <span style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--text-muted)' }}>%</span>
+                </div>
+              </div>
+
               {/* Auto Calculations Card */}
               <div 
                 style={{ 
                   display: 'flex', 
-                  justifyContent: 'space-between', 
+                  flexDirection: 'column',
+                  gap: '6px',
                   backgroundColor: 'var(--bg-hover)', 
                   padding: '12px 16px', 
                   borderRadius: 'var(--radius-md)',
@@ -301,14 +462,30 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
                   fontSize: '13px'
                 }}
               >
-                <div>
-                  <span className="text-muted">Duración:</span>{' '}
-                  <strong style={{ color: 'var(--secondary)' }}>{duration} minutos</strong>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div>
+                    <span className="text-muted">Duración:</span>{' '}
+                    <strong style={{ color: 'var(--secondary)' }}>{duration} minutos</strong>
+                  </div>
+                  <div>
+                    <span className="text-muted">Precio Base:</span>{' '}
+                    <span style={{ textDecoration: discount > 0 ? 'line-through' : 'none', color: discount > 0 ? 'var(--text-muted)' : 'var(--secondary)', fontWeight: discount > 0 ? 400 : 700 }}>
+                      ${price.toLocaleString('es-CO')}
+                    </span>
+                  </div>
                 </div>
-                <div>
-                  <span className="text-muted">Valor base:</span>{' '}
-                  <strong style={{ color: 'var(--secondary)' }}>${price.toLocaleString('es-CO')} COP</strong>
-                </div>
+                {discount > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px dashed var(--border-light)', paddingTop: '6px', marginTop: '4px' }}>
+                    <div style={{ color: 'var(--state-confirmada)', fontWeight: 600 }}>
+                      Descuento aplicado: {discount}%
+                    </div>
+                    <div>
+                      <strong style={{ color: 'var(--secondary)' }}>
+                        ${Math.round(price * (1 - discount / 100)).toLocaleString('es-CO')} COP
+                      </strong>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Dynamic Intelligent Alerts */}
@@ -358,7 +535,7 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
                 </div>
               )}
 
-              {/* Date & Time */}
+              {/* Date & Time con selector 12h */}
               <div className="grid-2">
                 <div className="form-group">
                   <label className="form-label">Fecha *</label>
@@ -372,12 +549,10 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
                 </div>
                 <div className="form-group">
                   <label className="form-label">Hora *</label>
-                  <input 
-                    type="time" 
-                    className="form-input" 
-                    required 
+                  <TimeSelector12h
                     value={time}
-                    onChange={(e) => setTime(e.target.value)}
+                    onChange={setTime}
+                    required
                   />
                 </div>
               </div>

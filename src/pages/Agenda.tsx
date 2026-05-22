@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Appointment } from '../context/AppContext';
+import { format12h, TimeSelector12h } from '../components/QuickAppointmentModal';
 import { 
   ChevronLeft, 
   ChevronRight, 
@@ -36,6 +37,7 @@ export const Agenda: React.FC = () => {
   const [editDoctorId, setEditDoctorId] = useState('');
   const [editStatus, setEditStatus] = useState<Appointment['status']>('pendiente');
   const [editNotes, setEditNotes] = useState('');
+  const [editDiscount, setEditDiscount] = useState(0);
 
   // Handle setting modal edit fields
   useEffect(() => {
@@ -45,6 +47,7 @@ export const Agenda: React.FC = () => {
       setEditDoctorId(selectedAppt.doctorId);
       setEditStatus(selectedAppt.status);
       setEditNotes(selectedAppt.notes || '');
+      setEditDiscount(selectedAppt.discount || 0);
     }
   }, [selectedAppt]);
 
@@ -130,7 +133,8 @@ export const Agenda: React.FC = () => {
         time: editTime,
         doctorId: editDoctorId,
         status: editStatus,
-        notes: editNotes
+        notes: editNotes,
+        discount: editDiscount
       });
       setSelectedAppt(null);
     }
@@ -270,9 +274,9 @@ export const Agenda: React.FC = () => {
                                 e.stopPropagation();
                                 setSelectedAppt(appt);
                               }}
-                              title={`${appt.time} - ${pat.name}: ${proc?.name || ''}`}
+                              title={`${format12h(appt.time)} - ${pat.name}: ${proc?.name || ''}`}
                             >
-                              <strong>{appt.time}</strong> {pat.name.split(' ')[0]}
+                              <strong>{format12h(appt.time)}</strong> {pat.name.split(' ')[0]}
                             </div>
                           );
                         })}
@@ -283,7 +287,7 @@ export const Agenda: React.FC = () => {
                         <span 
                           key={appt.id} 
                           className={`calendar-mobile-dot ${appt.status}`}
-                          title={`${appt.time}`}
+                          title={`${format12h(appt.time)}`}
                         />
                       ))}
                     </div>
@@ -296,8 +300,9 @@ export const Agenda: React.FC = () => {
       </div>
 
       {/* Professional Appointment Details & Editing Modal */}
+      {/* ⚠️ SIN onClick en modal-overlay — solo se cierra con botones explícitos */}
       {selectedAppt && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setSelectedAppt(null)}>
+        <div className="modal-overlay">
           <div className="modal-content fade-in" style={{ maxWidth: '500px' }}>
             <div className="modal-header">
               <h2>Detalles de la Cita</h2>
@@ -323,7 +328,15 @@ export const Agenda: React.FC = () => {
                         Cód. Procedimiento: <strong>{proc.code}</strong> • {proc.name}
                       </div>
                       <div style={{ fontSize: '13px', color: 'var(--secondary)', fontWeight: 700, marginTop: '6px' }}>
-                        Valor del Tratamiento: ${proc.price.toLocaleString('es-CO')}
+                        Valor del Tratamiento:{' '}
+                        <span style={{ textDecoration: (selectedAppt.discount || 0) > 0 ? 'line-through' : 'none', color: (selectedAppt.discount || 0) > 0 ? 'var(--text-muted)' : 'var(--secondary)', fontWeight: (selectedAppt.discount || 0) > 0 ? 400 : 700 }}>
+                          ${proc.price.toLocaleString('es-CO')}
+                        </span>
+                        {(selectedAppt.discount || 0) > 0 && (
+                          <strong style={{ color: 'var(--state-confirmada)', marginLeft: '8px' }}>
+                            ${Math.round(proc.price * (1 - (selectedAppt.discount || 0) / 100)).toLocaleString('es-CO')} ({(selectedAppt.discount || 0)}% desc.)
+                          </strong>
+                        )}
                       </div>
                       {pat.allergies !== 'Ninguna' && pat.allergies !== 'Ninguna conocida' && (
                         <div style={{ display: 'flex', gap: '6px', alignItems: 'center', color: 'var(--state-cancelada)', fontSize: '11px', fontWeight: 700, marginTop: '6px' }}>
@@ -348,12 +361,10 @@ export const Agenda: React.FC = () => {
                   </div>
                   <div className="form-group">
                     <label className="form-label">Hora</label>
-                    <input 
-                      type="time" 
-                      className="form-input" 
-                      required 
+                    <TimeSelector12h
                       value={editTime}
-                      onChange={(e) => setEditTime(e.target.value)}
+                      onChange={setEditTime}
+                      required
                     />
                   </div>
                 </div>
@@ -369,6 +380,22 @@ export const Agenda: React.FC = () => {
                       <option key={d.id} value={d.id}>{d.name} ({d.specialty})</option>
                     ))}
                   </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label">Porcentaje de Descuento (%)</label>
+                  <input 
+                    type="number" 
+                    className="form-input"
+                    min={0}
+                    max={100}
+                    value={editDiscount || ''}
+                    onChange={(e) => {
+                      const val = e.target.value === '' ? 0 : Number(e.target.value);
+                      setEditDiscount(val < 0 ? 0 : val > 100 ? 100 : val);
+                    }}
+                    placeholder="0"
+                  />
                 </div>
 
                 <div className="form-group">
@@ -420,10 +447,10 @@ export const Agenda: React.FC = () => {
       )}
 
       {/* Day details modal for displaying multiple appointments clearly */}
+      {/* ⚠️ SIN onClick en modal-overlay — solo se cierra con botones explícitos */}
       {selectedDayAppts && (
         <div 
           className="modal-overlay" 
-          onClick={(e) => e.target === e.currentTarget && setSelectedDayAppts(null)}
           style={{ animation: 'fadeIn 0.2s ease' }}
         >
           <div className="modal-content fade-in" style={{ maxWidth: '680px', padding: '24px', borderRadius: '18px' }}>
@@ -479,7 +506,7 @@ export const Agenda: React.FC = () => {
                           }}
                         >
                           <Clock size={12} style={{ marginRight: '4px' }} />
-                          {appt.time}
+                          {format12h(appt.time)}
                         </div>
                         <div className="calendar-day-modal-item-patient">
                           <strong>{pat.name}</strong>

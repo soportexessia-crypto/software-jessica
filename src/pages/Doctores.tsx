@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Doctor } from '../context/AppContext';
 import { Calendar, Clock, Lock } from 'lucide-react';
+import { format12h, TimeSelector12h } from '../components/QuickAppointmentModal';
 
 export const Doctores: React.FC = () => {
   const { 
@@ -343,22 +344,18 @@ export const Doctores: React.FC = () => {
                 <div className="grid-2" style={{ gap: '10px' }}>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label">Hora Inicio</label>
-                    <input 
-                      type="time" 
-                      className="form-input" 
-                      required
+                    <TimeSelector12h 
                       value={blockTimeStart}
-                      onChange={(e) => setBlockTimeStart(e.target.value)}
+                      onChange={(time24) => setBlockTimeStart(time24)}
+                      required
                     />
                   </div>
                   <div className="form-group" style={{ marginBottom: 0 }}>
                     <label className="form-label">Hora Fin</label>
-                    <input 
-                      type="time" 
-                      className="form-input" 
-                      required
+                    <TimeSelector12h 
                       value={blockTimeEnd}
-                      onChange={(e) => setBlockTimeEnd(e.target.value)}
+                      onChange={(time24) => setBlockTimeEnd(time24)}
+                      required
                     />
                   </div>
                 </div>
@@ -409,7 +406,7 @@ export const Doctores: React.FC = () => {
                         <tr key={appt.id}>
                           <td><strong>{pat?.name}</strong></td>
                           <td>{appt.date}</td>
-                          <td>{appt.time}</td>
+                          <td>{format12h(appt.time)}</td>
                           <td>{proc?.name}</td>
                           <td>
                             <span className={`badge badge-${appt.status}`}>{appt.status.toUpperCase()}</span>
@@ -438,9 +435,9 @@ export const Doctores: React.FC = () => {
         </div>
       )}
 
-      {/* Create/Edit Doctor Modal */}
+      {/* ⚠️ SIN onClick en modal-overlay — solo se cierra con botones explícitos */}
       {isModalOpen && (
-        <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
+        <div className="modal-overlay">
           <div className="modal-content fade-in" style={{ maxWidth: '500px', borderRadius: 'var(--radius-lg)' }} onClick={(e) => e.stopPropagation()}>
             <div className="modal-header" style={{ borderBottom: '1px solid var(--border-light)', padding: '16px' }}>
               <h3 style={{ margin: 0 }}>{editingDoctor ? 'Editar Especialista' : 'Registrar Nuevo Especialista'}</h3>

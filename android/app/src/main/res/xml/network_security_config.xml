@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Configuración de seguridad de red para XESSIA -->
+<!-- Permite conexiones HTTPS al backend de Railway (MongoDB Atlas Cloud) -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="false">
+        <!-- Backend principal Railway -->
+        <domain includeSubdomains="true">software-jessica-production.up.railway.app</domain>
+        <domain includeSubdomains="true">railway.app</domain>
+        <!-- Fallback Vercel (actualizaciones OTA) -->
+        <domain includeSubdomains="true">vercel.app</domain>
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </domain-config>
+    <!-- Permitir cualquier otro dominio también (para debugging) -->
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

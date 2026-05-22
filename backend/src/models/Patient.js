@@ -22,6 +22,8 @@ const PatientSchema = new mongoose.Schema({
   observations: { type: String, default: '' },
   photoUrl:     { type: String, default: '' },
   debt:         { type: Number, default: 0 },
+  companionPhone: { type: String, default: '' },
+  companionName:  { type: String, default: '' },
   odontogram:   { type: Map, of: OdontogramToothSchema, default: {} },
   active:       { type: Boolean, default: true }
 }, { timestamps: true });

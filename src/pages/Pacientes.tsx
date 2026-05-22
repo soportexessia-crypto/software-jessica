@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import type { Patient } from '../context/AppContext';
 import { Odontograma } from '../components/Odontograma';
+import { format12h } from '../components/QuickAppointmentModal';
 import { 
   Search, 
   UserPlus, 
@@ -61,18 +62,154 @@ export const Pacientes: React.FC = () => {
 
   const selectedPatient = patients.find(p => p.id === selectedPatientId) || patients[0];
 
+  const [formCompanionPhone, setFormCompanionPhone] = useState('');
+  const [formCompanionName, setFormCompanionName] = useState('');
+
+  // ========= ESTADOS DEL MODAL DE HISTORIAL CLÍNICO =========
+  const [isClinicalModalOpen, setIsClinicalModalOpen] = useState(false);
+  // Campos editables del historial
+  const [clinicalAllergies, setClinicalAllergies] = useState('');
+  const [clinicalInitialObs, setClinicalInitialObs] = useState('');
+  // Notas de la línea de tiempo (array parseado)
+  const [clinicalNotes, setClinicalNotes] = useState<Array<{ raw: string; text: string; date: string; type: 'nota' | 'receta'; editing: boolean; editText: string }>>([]);
+
+  // ========= HELPERS DE PARSEO / SERIALIZACIÓN DE OBSERVACIONES =========
+  /** Parsea el string de observations en notas estructuradas y el texto base */
+  const parseObservations = (obs: string) => {
+    const parts = obs.split('\n\n');
+    const initialObs = parts.filter(p => !p.startsWith('[Nota') && !p.startsWith('[Receta')).join('\n\n');
+    const notes = parts
+      .filter(p => p.startsWith('[Nota') || p.startsWith('[Receta'))
+      .map(raw => {
+        const isReceta = raw.startsWith('[Receta');
+        const dateMatch = raw.match(/-\s*(\d{1,2}\/\d{1,2}\/\d{4})/);
+        const date = dateMatch?.[1] || '';
+        const text = raw
+          .replace(/\[Nota de Evolución - .*?\]: /, '')
+          .replace(/\[Receta Médica - .*?\]: /, '')
+          .trim();
+        return { raw, text, date, type: (isReceta ? 'receta' : 'nota') as 'nota' | 'receta', editing: false, editText: text };
+      });
+    return { initialObs, notes };
+  };
+
+  /** Re-serializa notas + observaciones iniciales en el string de observations */
+  const serializeObservations = (initialObs: string, notes: typeof clinicalNotes): string => {
+    const initialPart = initialObs.trim();
+    const notesParts = notes.map(n => n.raw);
+    return [initialPart, ...notesParts].filter(Boolean).join('\n\n');
+  };
+
+  const handleOpenClinicalModal = () => {
+    if (!selectedPatient) return;
+    const { initialObs, notes } = parseObservations(selectedPatient.observations || '');
+    setClinicalAllergies(selectedPatient.allergies || '');
+    setClinicalInitialObs(initialObs);
+    setClinicalNotes(notes);
+    setIsClinicalModalOpen(true);
+  };
+
+  const handleSaveClinicalModal = async () => {
+    if (!selectedPatient) return;
+    // Reconstruir notas con textos editados
+    const updatedNotes = clinicalNotes.map(n => {
+      if (n.type === 'receta') {
+        return { ...n, raw: `[Receta Médica - ${n.date}]: \n${n.editText}` };
+      } else {
+        return { ...n, raw: `[Nota de Evolución - ${n.date}]: ${n.editText}` };
+      }
+    });
+    const newObservations = serializeObservations(clinicalInitialObs, updatedNotes);
+    await updatePatient(selectedPatient.id, {
+      allergies: clinicalAllergies,
+      observations: newObservations
+    });
+    setIsClinicalModalOpen(false);
+    showToast('Historial clínico actualizado correctamente.', 'success');
+  };
+
+  const handleDeleteClinicalNote = (idx: number) => {
+    if (!window.confirm('¿Eliminar esta nota del historial clínico? Esta acción no se puede deshacer.')) return;
+    setClinicalNotes(prev => prev.filter((_, i) => i !== idx));
+    showToast('Nota eliminada. Guarda los cambios para confirmar.', 'info');
+  };
+
+  // Sincronización de borrador seguro de Pacientes a localStorage
+  useEffect(() => {
+    if (isModalOpen && modalMode === 'create') {
+      const draft = {
+        name: formName,
+        document: formDoc,
+        phone: formPhone,
+        address: formAddress,
+        birthDate: formBirth,
+        gender: formGender,
+        email: formEmail,
+        eps: formEps,
+        allergies: formAllergies,
+        observations: formObs,
+        companionPhone: formCompanionPhone,
+        companionName: formCompanionName
+      };
+      localStorage.setItem('xessia_draft_patient', JSON.stringify(draft));
+    }
+  }, [isModalOpen, modalMode, formName, formDoc, formPhone, formAddress, formBirth, formGender, formEmail, formEps, formAllergies, formObs, formCompanionPhone, formCompanionName]);
+
+  // Recuperar borrador de nota clínica para cada paciente específico
+  useEffect(() => {
+    if (selectedPatient?.id) {
+      const saved = localStorage.getItem('xessia_draft_note_' + selectedPatient.id);
+      setNewNote(saved || '');
+    }
+  }, [selectedPatient?.id]);
+
+  // Guardar borrador de nota clínica
+  useEffect(() => {
+    if (selectedPatient?.id) {
+      if (newNote) {
+        localStorage.setItem('xessia_draft_note_' + selectedPatient.id, newNote);
+      } else {
+        localStorage.removeItem('xessia_draft_note_' + selectedPatient.id);
+      }
+    }
+  }, [newNote, selectedPatient?.id]);
+
   const handleOpenCreateModal = () => {
     setModalMode('create');
-    setFormName('');
-    setFormDoc('');
-    setFormPhone('');
-    setFormAddress('');
-    setFormBirth('');
-    setFormGender('Femenino');
-    setFormEmail('');
-    setFormEps('Particular');
-    setFormAllergies('Ninguna');
-    setFormObs('');
+    const saved = localStorage.getItem('xessia_draft_patient');
+    if (saved) {
+      try {
+        const draft = JSON.parse(saved);
+        setFormName(draft.name || '');
+        setFormDoc(draft.document || '');
+        setFormPhone(draft.phone || '');
+        setFormAddress(draft.address || '');
+        setFormBirth(draft.birthDate || '');
+        setFormGender(draft.gender || 'Femenino');
+        setFormEmail(draft.email || '');
+        setFormEps(draft.eps || 'Particular');
+        setFormAllergies(draft.allergies || 'Ninguna');
+        setFormObs(draft.observations || '');
+        setFormCompanionPhone(draft.companionPhone || '');
+        setFormCompanionName(draft.companionName || '');
+        showToast('Borrador restaurado automáticamente.', 'info');
+      } catch (e) {
+        console.error('Error parsing draft patient', e);
+      }
+    } else {
+      setFormName('');
+      setFormDoc('');
+      setFormPhone('');
+      setFormAddress('');
+      setFormBirth('');
+      setFormGender('Femenino');
+      setFormEmail('');
+      setFormEps('Particular');
+      setFormAllergies('Ninguna');
+      setFormObs('');
+      setFormCompanionPhone('');
+      setFormCompanionName('');
+    }
     setIsModalOpen(true);
   };
 
@@ -88,6 +225,8 @@ export const Pacientes: React.FC = () => {
     setFormEps(p.eps);
     setFormAllergies(p.allergies);
     setFormObs(p.observations);
+    setFormCompanionPhone(p.companionPhone || '');
+    setFormCompanionName(p.companionName || '');
     setIsModalOpen(true);
   };
 
@@ -106,9 +245,12 @@ export const Pacientes: React.FC = () => {
           email: formEmail,
           eps: formEps,
           allergies: formAllergies,
-          observations: formObs
+          observations: formObs,
+          companionPhone: formCompanionPhone,
+          companionName: formCompanionName
         });
         setSelectedPatientId(newP.id);
+        localStorage.removeItem('xessia_draft_patient');
       } else {
         await updatePatient(selectedPatient.id, {
           name: formName,
@@ -121,7 +263,9 @@ export const Pacientes: React.FC = () => {
           email: formEmail,
           eps: formEps,
           allergies: formAllergies,
-          observations: formObs
+          observations: formObs,
+          companionPhone: formCompanionPhone,
+          companionName: formCompanionName
         });
       }
       setIsModalOpen(false);
@@ -147,6 +291,7 @@ export const Pacientes: React.FC = () => {
     
     updatePatient(selectedPatient.id, { observations: noteWithHeader });
     setNewNote('');
+    localStorage.removeItem('xessia_draft_note_' + selectedPatient.id);
     showToast('Nota de evolución agregada al historial clínico.', 'success');
   };
 
@@ -271,9 +416,16 @@ export const Pacientes: React.FC = () => {
               <button 
                 className="btn btn-secondary" 
                 style={{ padding: '8px 12px', fontSize: '13px' }}
-                onClick={() => handleOpenEditModal(selectedPatient)}
+                onClick={() => {
+                  if (activeTab === 'historial') {
+                    handleOpenClinicalModal();
+                  } else {
+                    handleOpenEditModal(selectedPatient);
+                  }
+                }}
+                title={activeTab === 'historial' ? 'Editar Historial Clínico' : 'Editar Datos del Paciente'}
               >
-                <Edit3 size={14} /> Editar
+                <Edit3 size={14} /> {activeTab === 'historial' ? 'Editar Historial' : 'Editar'}
               </button>
               <button 
                 className="btn btn-danger" 
@@ -346,6 +498,15 @@ export const Pacientes: React.FC = () => {
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><Mail size={14} className="text-muted"/> Email: <strong>{selectedPatient.email || 'No registrado'}</strong></div>
                     <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}><FileText size={14} className="text-muted" style={{ marginTop: '3px' }}/> Dirección: <span>{selectedPatient.address || 'No registrado'}</span></div>
+                    {selectedPatient.companionPhone && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '10px', backgroundColor: 'var(--bg-hover)', borderRadius: '8px', border: '1px solid var(--border-light)', marginTop: '4px' }}>
+                        <span className="text-muted" style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Contacto Acompañante</span>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <strong style={{ fontSize: '13px' }}>{selectedPatient.companionName || 'Familiar'}</strong>
+                          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-main)' }}>{selectedPatient.companionPhone}</span>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -452,7 +613,7 @@ export const Pacientes: React.FC = () => {
                               return (
                                 <tr key={appt.id}>
                                   <td>{appt.date}</td>
-                                  <td>{appt.time}</td>
+                                  <td>{format12h(appt.time)}</td>
                                   <td>{doc?.name}</td>
                                   <td>{proc?.name}</td>
                                   <td>
@@ -596,8 +757,9 @@ export const Pacientes: React.FC = () => {
       )}
 
       {/* MODAL: REGISTRAR / EDITAR PACIENTE */}
+      {/* ⚠️ SIN onClick en modal-overlay — solo se cierra con botones explícitos */}
       {isModalOpen && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setIsModalOpen(false)}>
+        <div className="modal-overlay">
           <div className="modal-content fade-in" style={{ maxWidth: '600px' }}>
             <div className="modal-header">
               <h2>{modalMode === 'create' ? 'Registrar Paciente Nuevo' : 'Editar Ficha de Paciente'}</h2>
@@ -641,6 +803,29 @@ export const Pacientes: React.FC = () => {
                       value={formPhone} 
                       onChange={(e) => setFormPhone(e.target.value)} 
                       placeholder="Ej: +57 312 849 5723" 
+                    />
+                  </div>
+                </div>
+
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Celular del Acompañante o Familiar</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={formCompanionPhone} 
+                      onChange={(e) => setFormCompanionPhone(e.target.value)} 
+                      placeholder="Ej: 987654321" 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Nombre del Acompañante o Familiar</label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      value={formCompanionName} 
+                      onChange={(e) => setFormCompanionName(e.target.value)} 
+                      placeholder="Ej: Nombre del familiar" 
                     />
                   </div>
                 </div>
@@ -737,8 +922,9 @@ export const Pacientes: React.FC = () => {
       )}
 
       {/* MODAL: ABONO RAPIDO EN DEUDA DE PACIENTE */}
+      {/* ⚠️ SIN onClick en modal-overlay — solo se cierra con botones explícitos */}
       {isPaymentModalOpen && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setIsPaymentModalOpen(false)}>
+        <div className="modal-overlay">
           <div className="modal-content fade-in" style={{ maxWidth: '400px' }}>
             <div className="modal-header">
               <h2>Registrar Abono en Caja</h2>
@@ -791,7 +977,152 @@ export const Pacientes: React.FC = () => {
         </div>
       )}
 
+      {/* ======== MODAL PREMIUM: EDITAR HISTORIAL CLÍNICO ======== */}
+      {/* ⚠️ SIN onClick en modal-overlay — solo se cierra con botones explícitos */}
+      {isClinicalModalOpen && selectedPatient && (
+        <div className="modal-overlay">
+          <div className="modal-content fade-in" style={{ maxWidth: '680px' }}>
+            <div className="modal-header">
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                ✏️ Editar Historial Clínico
+                <span style={{ fontSize: '13px', fontWeight: 400, color: 'var(--text-muted)' }}>— {selectedPatient.name}</span>
+              </h2>
+              <button className="close-btn" onClick={() => setIsClinicalModalOpen(false)}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+
+              {/* Alergias */}
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '13px' }}>
+                  🚨 Alergias / Advertencias Médicas
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  value={clinicalAllergies}
+                  onChange={e => setClinicalAllergies(e.target.value)}
+                  placeholder="Ej: Penicilina, Látex, o 'Ninguna'"
+                />
+              </div>
+
+              {/* Observaciones Iniciales */}
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '13px' }}>
+                  📋 Observaciones Iniciales / Diagnóstico Base
+                </label>
+                <textarea
+                  className="form-textarea"
+                  rows={3}
+                  value={clinicalInitialObs}
+                  onChange={e => setClinicalInitialObs(e.target.value)}
+                  placeholder="Nota inicial del paciente o diagnóstico base..."
+                />
+              </div>
+
+              {/* Línea de Evolución Clínica */}
+              <div>
+                <label className="form-label" style={{ fontWeight: 700, fontSize: '13px', marginBottom: '10px', display: 'block' }}>
+                  📊 Línea de Evolución Clínica ({clinicalNotes.length} registros)
+                </label>
+                {clinicalNotes.length === 0 ? (
+                  <div className="text-muted" style={{ textAlign: 'center', padding: '20px', backgroundColor: 'var(--bg-app)', borderRadius: 'var(--radius-md)', fontSize: '13px' }}>
+                    No hay notas de evolución registradas.
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '340px', overflowY: 'auto', paddingRight: '4px' }}>
+                    {clinicalNotes.map((note, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          backgroundColor: 'var(--bg-app)',
+                          padding: '12px',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--border-light)',
+                          borderLeft: `4px solid ${note.type === 'receta' ? 'var(--accent)' : 'var(--primary)'}`,
+                          fontSize: '13px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: '6px' }}>
+                            <div style={{ fontSize: '10.5px', color: 'var(--text-muted)', fontWeight: 700 }}>
+                              {note.type === 'receta' ? '💊 FÓRMULA MÉDICA' : '📝 EVOLUCIÓN CLÍNICA'}{note.date && ` — ${note.date}`}
+                            </div>
+                            {note.editing ? (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                <textarea
+                                  className="form-textarea"
+                                  rows={3}
+                                  value={note.editText}
+                                  onChange={e => setClinicalNotes(prev => prev.map((n, i) => i === idx ? { ...n, editText: e.target.value } : n))}
+                                  style={{ fontSize: '12px' }}
+                                />
+                                <div style={{ display: 'flex', gap: '6px' }}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-primary"
+                                    style={{ fontSize: '11px', padding: '4px 10px' }}
+                                    onClick={() => setClinicalNotes(prev => prev.map((n, i) => i === idx ? { ...n, editing: false } : n))}
+                                  >
+                                    ✓ Guardar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary"
+                                    style={{ fontSize: '11px', padding: '4px 10px' }}
+                                    onClick={() => setClinicalNotes(prev => prev.map((n, i) => i === idx ? { ...n, editing: false, editText: n.text } : n))}
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ whiteSpace: 'pre-line', color: 'var(--text-main)' }}>{note.editText || note.text}</div>
+                            )}
+                          </div>
+                          {!note.editing && (
+                            <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+                              <button
+                                type="button"
+                                className="btn btn-secondary"
+                                style={{ padding: '4px 8px', fontSize: '11px', minWidth: 'auto' }}
+                                title="Editar nota"
+                                onClick={() => setClinicalNotes(prev => prev.map((n, i) => i === idx ? { ...n, editing: true } : n))}
+                              >
+                                <Edit3 size={12} />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-danger"
+                                style={{ padding: '4px 8px', fontSize: '11px', minWidth: 'auto' }}
+                                title="Eliminar nota"
+                                onClick={() => handleDeleteClinicalNote(idx)}
+                              >
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="btn btn-secondary" onClick={() => setIsClinicalModalOpen(false)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn btn-primary" onClick={handleSaveClinicalModal}>
+                💾 Guardar Historial
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
-

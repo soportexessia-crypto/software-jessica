@@ -69,9 +69,44 @@ export const Caja: React.FC = () => {
     if (appt) {
       const proc = procedures.find(p => p.code === appt.procedureCode);
       const price = proc ? proc.price : 0;
-      setPayAmount(price - appt.paidAmount);
+      const discount = appt.discount || 0;
+      const finalPrice = Math.round(price * (1 - discount / 100));
+      setPayAmount(finalPrice - appt.paidAmount);
     }
   };
+
+  // Load draft for Income
+  React.useEffect(() => {
+    if (isPayModalOpen) {
+      const saved = localStorage.getItem('xessia_draft_income');
+      if (saved) {
+        try {
+          const draft = JSON.parse(saved);
+          setSelectedPatientId(draft.selectedPatientId || '');
+          setSelectedApptId(draft.selectedApptId || '');
+          setPayAmount(draft.payAmount || 0);
+          setPayMethod(draft.payMethod || 'Efectivo');
+          setPayNotes(draft.payNotes || '');
+        } catch (e) {
+          console.error('Error parsing draft income', e);
+        }
+      }
+    }
+  }, [isPayModalOpen]);
+
+  // Sync draft for Income
+  React.useEffect(() => {
+    if (isPayModalOpen) {
+      const draft = {
+        selectedPatientId,
+        selectedApptId,
+        payAmount,
+        payMethod,
+        payNotes
+      };
+      localStorage.setItem('xessia_draft_income', JSON.stringify(draft));
+    }
+  }, [isPayModalOpen, selectedPatientId, selectedApptId, payAmount, payMethod, payNotes]);
 
   const handleRegisterPayment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -89,6 +124,7 @@ export const Caja: React.FC = () => {
       notes: payNotes || `Abono registrado en caja.`
     });
 
+    localStorage.removeItem('xessia_draft_income');
     setIsPayModalOpen(false);
     setSelectedPatientId('');
     setSelectedApptId('');
@@ -108,6 +144,39 @@ export const Caja: React.FC = () => {
     }
   };
 
+  // Load draft for Expense
+  React.useEffect(() => {
+    if (isExpenseModalOpen) {
+      const saved = localStorage.getItem('xessia_draft_expense');
+      if (saved) {
+        try {
+          const draft = JSON.parse(saved);
+          setExpenseAmount(draft.expenseAmount || 0);
+          setExpenseNotes(draft.expenseNotes || '');
+          setExpenseDate(draft.expenseDate || todayStr);
+          setExpenseMethod(draft.expenseMethod || 'Efectivo');
+          setExpensePhoto(draft.expensePhoto || null);
+        } catch (e) {
+          console.error('Error parsing draft expense', e);
+        }
+      }
+    }
+  }, [isExpenseModalOpen]);
+
+  // Sync draft for Expense
+  React.useEffect(() => {
+    if (isExpenseModalOpen) {
+      const draft = {
+        expenseAmount,
+        expenseNotes,
+        expenseDate,
+        expenseMethod,
+        expensePhoto
+      };
+      localStorage.setItem('xessia_draft_expense', JSON.stringify(draft));
+    }
+  }, [isExpenseModalOpen, expenseAmount, expenseNotes, expenseDate, expenseMethod, expensePhoto]);
+
   const handleRegisterExpense = (e: React.FormEvent) => {
     e.preventDefault();
     if (expenseAmount <= 0 || !expenseNotes || !expenseDate) {
@@ -124,6 +193,7 @@ export const Caja: React.FC = () => {
       receiptPhoto: expensePhoto || undefined
     });
 
+    localStorage.removeItem('xessia_draft_expense');
     setIsExpenseModalOpen(false);
     setExpenseAmount(0);
     setExpenseNotes('');
@@ -313,8 +383,9 @@ export const Caja: React.FC = () => {
       </div>
 
       {/* POPUP MODAL: REGISTRAR PAGO RECIBIDO */}
+      {/* ⚠️ SIN onClick en modal-overlay — solo se cierra con botones explícitos */}
       {isPayModalOpen && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setIsPayModalOpen(false)}>
+        <div className="modal-overlay">
           <div className="modal-content fade-in" style={{ maxWidth: '450px' }}>
             <div className="modal-header">
               <h2>Registrar Pago Recibido</h2>
@@ -353,9 +424,13 @@ export const Caja: React.FC = () => {
                         <option value="">-- Pago General / Abono voluntario --</option>
                         {pendingAppts.map(a => {
                           const proc = procedures.find(p => p.code === a.procedureCode);
+                          const price = proc ? proc.price : 0;
+                          const discount = a.discount || 0;
+                          const finalPrice = Math.round(price * (1 - discount / 100));
+                          const pendingPrice = finalPrice - a.paidAmount;
                           return (
                             <option key={a.id} value={a.id}>
-                              {a.date} - {proc?.name} (Debe: ${(proc ? proc.price - a.paidAmount : 0).toLocaleString('es-CO')})
+                              {a.date} - {proc?.name} {discount > 0 ? `(Dcto: ${discount}%)` : ''} (Debe: ${pendingPrice.toLocaleString('es-CO')})
                             </option>
                           );
                         })}
@@ -415,8 +490,9 @@ export const Caja: React.FC = () => {
       )}
 
       {/* POPUP MODAL: REGISTRAR EGRESO / GASTO */}
+      {/* ⚠️ SIN onClick en modal-overlay — solo se cierra con botones explícitos */}
       {isExpenseModalOpen && (
-        <div className="modal-overlay" onClick={(e) => e.target === e.currentTarget && setIsExpenseModalOpen(false)}>
+        <div className="modal-overlay">
           <div className="modal-content fade-in" style={{ maxWidth: '450px' }}>
             <div className="modal-header" style={{ borderBottom: '1px solid #fca5a5' }}>
               <h2 style={{ color: 'var(--state-cancelada)' }}>Registrar Egreso / Gasto</h2>
@@ -573,14 +649,14 @@ export const Caja: React.FC = () => {
       {selectedRecordForInvoice && (() => {
         const isIncome = selectedRecordForInvoice.type === 'Ingreso';
         return (
-          <div className="modal-overlay" onClick={() => setSelectedRecordForInvoice(null)}>
-            <div className="modal-content fade-in" style={{ maxWidth: '500px', padding: 0, borderRadius: '18px', overflow: 'hidden' }}>
+          <div className="modal-overlay">
+            <div className="modal-content fade-in" style={{ maxWidth: '500px', padding: 0, borderRadius: '18px', overflow: 'hidden' }} onClick={(e) => e.stopPropagation()}>
               
               {/* Professional Header mockup */}
               <div style={{ 
                 backgroundColor: isIncome ? 'var(--primary-light)' : 'var(--state-cancelada-bg)', 
                 borderBottom: '1px solid ' + (isIncome ? 'var(--border-light)' : '#fca5a5'), 
-                padding: '24px 32px', 
+                padding: '20px 32px', 
                 display: 'flex', 
                 justifyContent: 'space-between', 
                 alignItems: 'center' 
@@ -597,7 +673,16 @@ export const Caja: React.FC = () => {
                   </div>
                   <h2 style={{ color: 'var(--text-main)', marginTop: '4px', fontSize: '20px' }}>Centro Odontológico Catalina EVA</h2>
                 </div>
-                <CheckCircle size={36} style={{ color: isIncome ? 'var(--state-confirmada)' : 'var(--state-cancelada)' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <CheckCircle size={36} style={{ color: isIncome ? 'var(--state-confirmada)' : 'var(--state-cancelada)' }} />
+                  <button 
+                    className="close-btn" 
+                    onClick={() => setSelectedRecordForInvoice(null)}
+                    title="Cerrar recibo"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
               </div>
 
               <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '20px', fontSize: '13px' }}>
@@ -637,18 +722,66 @@ export const Caja: React.FC = () => {
                 )}
 
                 {/* Itemized cost structure */}
-                <div style={{ border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', padding: '12px 16px', backgroundColor: 'var(--bg-app)' }}>
-                  <span className="text-muted" style={{ fontSize: '11px', fontWeight: 700 }}>
-                    {isIncome ? 'CONCEPTO DEL ABONO:' : 'CONCEPTO DEL GASTO:'}
-                  </span>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', fontSize: '13.5px' }}>
-                    <span style={{ fontWeight: 500 }}>
-                      {selectedRecordForInvoice.notes || (isIncome ? 'Abono general odontológico en caja' : 'Salida de caja general')}
+                <div style={{ border: '1px solid var(--border-light)', borderRadius: 'var(--radius-md)', padding: '12px 16px', backgroundColor: 'var(--bg-app)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div>
+                    <span className="text-muted" style={{ fontSize: '11px', fontWeight: 700 }}>
+                      {isIncome ? 'CONCEPTO DEL ABONO:' : 'CONCEPTO DEL GASTO:'}
                     </span>
-                    <strong style={{ color: isIncome ? 'var(--text-main)' : 'var(--state-cancelada)' }}>
-                      {isIncome ? '+' : '-'}${selectedRecordForInvoice.amount.toLocaleString('es-CO')} COP
-                    </strong>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '6px', fontSize: '13.5px' }}>
+                      <span style={{ fontWeight: 500 }}>
+                        {selectedRecordForInvoice.notes || (isIncome ? 'Abono general odontológico en caja' : 'Salida de caja general')}
+                      </span>
+                      <strong style={{ color: isIncome ? 'var(--text-main)' : 'var(--state-cancelada)' }}>
+                        {isIncome ? '+' : '-'}${selectedRecordForInvoice.amount.toLocaleString('es-CO')} COP
+                      </strong>
+                    </div>
                   </div>
+
+                  {isIncome && selectedRecordForInvoice.appointmentId && (() => {
+                    const appt = appointments.find(a => a.id === selectedRecordForInvoice.appointmentId);
+                    if (appt) {
+                      const proc = procedures.find(p => p.code === appt.procedureCode);
+                      const discount = appt.discount || 0;
+                      const basePrice = proc ? proc.price : 0;
+                      const finalPrice = Math.round(basePrice * (1 - discount / 100));
+                      
+                      return (
+                        <div style={{ 
+                          marginTop: '6px', 
+                          paddingTop: '8px', 
+                          borderTop: '1px dashed var(--border-light)', 
+                          fontSize: '12px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '4px'
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                            <span>Procedimiento:</span>
+                            <span>{proc?.name || appt.procedureCode}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-muted)' }}>
+                            <span>Valor Procedimiento:</span>
+                            <span>${basePrice.toLocaleString('es-CO')} COP</span>
+                          </div>
+                          {discount > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--state-cancelada)', fontWeight: 600 }}>
+                              <span>Descuento Aplicado ({discount}%):</span>
+                              <span>-${Math.round(basePrice * (discount / 100)).toLocaleString('es-CO')} COP</span>
+                            </div>
+                          )}
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontWeight: 700, color: 'var(--text-main)', marginTop: '2px' }}>
+                            <span>Total Liquidado con Descuento:</span>
+                            <span>${finalPrice.toLocaleString('es-CO')} COP</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--state-confirmada)', fontWeight: 600 }}>
+                            <span>Abonado Previamente:</span>
+                            <span>${appt.paidAmount.toLocaleString('es-CO')} COP</span>
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 {/* Receipt Image Soporte preview */}

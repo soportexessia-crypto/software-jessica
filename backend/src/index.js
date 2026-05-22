@@ -11,11 +11,10 @@ connectDB();
 
 // Middleware
 app.use(cors({
-  origin: [
-    'http://localhost:5173',  // Vite dev server
-    'http://localhost:4173',  // Vite preview
-    'app://.'                 // Electron
-  ],
+  origin: (origin, callback) => {
+    // Permitir cualquier origen (Capacitor mobile, Electron, desarrollo, etc.) o sin origen (Postman/cURL)
+    callback(null, true);
+  },
   credentials: true
 }));
 app.use(express.json({ limit: '10mb' }));
@@ -31,6 +30,7 @@ app.use('/api/appointments', require('./routes/appointments'));
 app.use('/api/financials',   require('./routes/financials'));
 app.use('/api/doctors',      require('./routes/doctors'));
 app.use('/api/procedures',   require('./routes/procedures'));
+app.use('/api/system',       require('./routes/system'));
 app.use('/api/seed',         require('./routes/seed'));
 
 // Health check

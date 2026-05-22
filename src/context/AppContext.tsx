@@ -40,6 +40,8 @@ export interface Patient {
   observations: string;
   photoUrl?: string;
   debt: number;
+  companionPhone?: string;
+  companionName?: string;
   odontogram: Record<number, Record<string, 'caries' | 'conducto' | 'corona' | 'none'>>; // toothNumber -> section -> state
 }
 
@@ -54,6 +56,7 @@ export interface Appointment {
   status: 'confirmada' | 'pendiente' | 'cancelada' | 'enproceso' | 'finalizada';
   paymentStatus: 'pagado' | 'parcial' | 'deuda';
   paidAmount: number;
+  discount?: number;
   notes?: string;
 }
 

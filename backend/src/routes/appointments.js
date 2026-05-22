@@ -36,8 +36,10 @@ router.get('/:id', auth, async (req, res) => {
 // POST /api/appointments — crear cita
 router.post('/', auth, async (req, res) => {
   try {
+    const discount = req.body.discount !== undefined ? Number(req.body.discount) : 0;
     const appt = new Appointment({
       ...req.body,
+      discount,
       paidAmount: 0,
       paymentStatus: 'deuda'
     });
@@ -46,8 +48,9 @@ router.post('/', auth, async (req, res) => {
     // Sumar la deuda al paciente
     const procedure = await Procedure.findOne({ code: req.body.procedureCode });
     if (procedure) {
+      const finalPrice = Math.round(procedure.price * (1 - discount / 100));
       await Patient.findByIdAndUpdate(req.body.patientId, {
-        $inc: { debt: procedure.price }
+        $inc: { debt: finalPrice }
       });
     }
 
@@ -65,28 +68,43 @@ router.patch('/:id', auth, async (req, res) => {
 
     const updatedFields = req.body;
 
-    // Si cambia el monto pagado, recalcular paymentStatus y debt del paciente
-    if (updatedFields.paidAmount !== undefined) {
-      const procedure = await Procedure.findOne({ code: appt.procedureCode });
-      const fullPrice = procedure ? procedure.price : 0;
-      const newPaid = updatedFields.paidAmount;
-      const diffPaid = newPaid - appt.paidAmount;
+    // Calcular el estado de deuda anterior
+    const oldProcedureCode = appt.procedureCode;
+    const oldDiscount = appt.discount || 0;
+    const oldPaidAmount = appt.paidAmount || 0;
+    const oldProcedure = await Procedure.findOne({ code: oldProcedureCode });
+    const oldPrice = oldProcedure ? oldProcedure.price : 0;
+    const oldFinalPrice = Math.round(oldPrice * (1 - oldDiscount / 100));
+    const oldDebtContrib = oldFinalPrice - oldPaidAmount;
 
-      updatedFields.paymentStatus = newPaid >= fullPrice ? 'pagado'
-        : newPaid > 0 ? 'parcial'
-        : 'deuda';
+    // Obtener los nuevos valores
+    const newProcedureCode = updatedFields.procedureCode !== undefined ? updatedFields.procedureCode : appt.procedureCode;
+    const newDiscount = updatedFields.discount !== undefined ? Number(updatedFields.discount) : (appt.discount || 0);
+    const newPaidAmount = updatedFields.paidAmount !== undefined ? Number(updatedFields.paidAmount) : (appt.paidAmount || 0);
+    
+    const newProcedure = await Procedure.findOne({ code: newProcedureCode });
+    const newPrice = newProcedure ? newProcedure.price : 0;
+    const newFinalPrice = Math.round(newPrice * (1 - newDiscount / 100));
+    const newDebtContrib = newFinalPrice - newPaidAmount;
 
-      // Ajustar deuda del paciente
-      if (diffPaid !== 0) {
-        await Patient.findByIdAndUpdate(appt.patientId, {
-          $inc: { debt: -diffPaid }
-        });
-        // Asegurar que la deuda no quede negativa
-        await Patient.updateOne(
-          { _id: appt.patientId, debt: { $lt: 0 } },
-          { $set: { debt: 0 } }
-        );
-      }
+    // Calcular diferencia diferencial
+    const diffDebt = newDebtContrib - oldDebtContrib;
+
+    // Actualizar paymentStatus en base a los nuevos valores
+    updatedFields.paymentStatus = newPaidAmount >= newFinalPrice ? 'pagado'
+      : newPaidAmount > 0 ? 'parcial'
+      : 'deuda';
+
+    // Ajustar la deuda del paciente diferencialmente
+    if (diffDebt !== 0) {
+      await Patient.findByIdAndUpdate(appt.patientId, {
+        $inc: { debt: diffDebt }
+      });
+      // Asegurar que la deuda no quede negativa
+      await Patient.updateOne(
+        { _id: appt.patientId, debt: { $lt: 0 } },
+        { $set: { debt: 0 } }
+      );
     }
 
     Object.assign(appt, updatedFields);
