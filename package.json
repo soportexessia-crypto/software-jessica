@@ -10,15 +10,20 @@
     "build:obfuscate": "tsc -b && vite build && npx javascript-obfuscator dist/assets --output dist/assets --compact true --self-defending true --debug-protection true --disable-console-output true --split-strings true --string-array-threshold 1",
     "electron:dev": "electron .",
     "electron:build": "npm run build:obfuscate && electron-builder",
+    "mobile:sync": "npm run build:obfuscate && npx cap sync",
+    "mobile:build": "npm run mobile:sync && powershell -Command \"$env:ANDROID_HOME='C:\\Users\\Soren\\AppData\\Local\\Android\\Sdk'; cd android; .\\gradlew.bat assembleDebug\" && powershell -Command \"Copy-Item -Path android\\app\\build\\outputs\\apk\\debug\\app-debug.apk -Destination release\\XESSIA_Software_Jessica.apk -Force\"",
     "lint": "eslint .",
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/core": "^8.3.4",
     "lucide-react": "^1.16.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6"
   },
   "devDependencies": {
+    "@capacitor/android": "^8.3.4",
+    "@capacitor/cli": "^8.3.4",
     "@eslint/js": "^10.0.1",
     "@types/node": "^24.12.3",
     "@types/react": "^19.2.14",
