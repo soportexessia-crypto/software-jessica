@@ -1,6 +1,11 @@
 const { app, BrowserWindow } = require('electron');
 const path = require('path');
 
+// Set App User Model ID for Windows taskbar grouping and custom icon association
+if (process.platform === 'win32') {
+  app.setAppUserModelId("com.xessia.softwarejessica");
+}
+
 let mainWindow;
 
 function createWindow() {
@@ -10,7 +15,7 @@ function createWindow() {
     minWidth: 1024,
     minHeight: 700,
     title: "XESSIA Software Jessica",
-    icon: path.join(__dirname, 'dist', 'img', 'Logo.ico'),
+    icon: path.join(__dirname, 'dist', 'img', 'Logo.png'),
     show: false,
     webPreferences: {
       nodeIntegration: false,
