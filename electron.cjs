@@ -1,5 +1,8 @@
-const { app, BrowserWindow } = require('electron');
+const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const https = require('https');
+const { exec } = require('child_process');
 
 // Set App User Model ID for Windows taskbar grouping and custom icon association
 if (process.platform === 'win32') {
@@ -20,7 +23,8 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      enableRemoteModule: false
+      enableRemoteModule: false,
+      preload: path.join(__dirname, 'preload.cjs')
     }
   });
 
@@ -120,4 +124,128 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit();
   }
+});
+
+// Helper function to download file supporting http/https and following redirects (301, 302, 303, 307, 308)
+function downloadFile(url, tempPath, event, onCompleted) {
+  const http = require('http');
+  const https = require('https');
+  const fs = require('fs');
+
+  // Remove old setup if it exists in the temp folder to prevent locks
+  if (fs.existsSync(tempPath)) {
+    try {
+      fs.unlinkSync(tempPath);
+    } catch (e) {
+      console.warn('Could not delete existing temp setup, trying to overwrite anyway.', e);
+    }
+  }
+
+  const fileStream = fs.createWriteStream(tempPath);
+  let receivedBytes = 0;
+  let totalBytes = 0;
+  const startTime = Date.now();
+
+  function performGet(currentUrl, redirectCount = 0) {
+    if (redirectCount > 5) {
+      fileStream.close();
+      try { fs.unlinkSync(tempPath); } catch (e) {}
+      event.reply('update-error', 'Demasiadas redirecciones (máximo 5)');
+      return;
+    }
+
+    const client = currentUrl.startsWith('https') ? https : http;
+    
+    const request = client.get(currentUrl, (response) => {
+      // Handle HTTP redirects (301, 302, 303, 307, 308)
+      if ([301, 302, 303, 307, 308].includes(response.statusCode)) {
+        let redirectUrl = response.headers.location;
+        if (redirectUrl) {
+          // Resolve relative paths if any
+          if (!redirectUrl.startsWith('http://') && !redirectUrl.startsWith('https://')) {
+            const parsedUrl = new URL(currentUrl);
+            redirectUrl = parsedUrl.origin + redirectUrl;
+          }
+          performGet(redirectUrl, redirectCount + 1);
+          return;
+        }
+      }
+
+      if (response.statusCode !== 200) {
+        fileStream.close();
+        try { fs.unlinkSync(tempPath); } catch (e) {}
+        event.reply('update-error', `El servidor respondió con código ${response.statusCode}`);
+        return;
+      }
+
+      totalBytes = parseInt(response.headers['content-length'] || '0', 10);
+
+      response.on('data', (chunk) => {
+        receivedBytes += chunk.length;
+        fileStream.write(chunk);
+
+        const progress = totalBytes > 0 ? Math.round((receivedBytes / totalBytes) * 100) : 0;
+        const elapsedSeconds = (Date.now() - startTime) / 1000;
+        let speed = 'Calculando...';
+        if (elapsedSeconds > 0) {
+          const speedMbps = ((receivedBytes * 8) / (1024 * 1024)) / elapsedSeconds;
+          speed = `${speedMbps.toFixed(1)} Mbps`;
+        }
+
+        const downloadedBytesStr = `${(receivedBytes / (1024 * 1024)).toFixed(1)} MB / ${(totalBytes / (1024 * 1024)).toFixed(1)} MB`;
+
+        event.reply('update-progress', {
+          progress,
+          speed,
+          downloadedBytes: downloadedBytesStr
+        });
+      });
+
+      response.on('end', () => {
+        fileStream.end(() => {
+          onCompleted();
+        });
+      });
+    });
+
+    request.on('error', (err) => {
+      fileStream.close();
+      try { fs.unlinkSync(tempPath); } catch (e) {}
+      console.error('Download error:', err.message);
+      event.reply('update-error', err.message);
+    });
+  }
+
+  performGet(url);
+}
+
+// IPC Handler to safely download, execute update installer and quit the app
+ipcMain.on('start-update-download', (event, url) => {
+  console.log('Starting update download from:', url);
+  const tempPath = path.join(app.getPath('temp'), 'XESSIA_Setup.exe');
+
+  downloadFile(url, tempPath, event, () => {
+    console.log('Download complete. Launching installer:', tempPath);
+    event.reply('update-completed');
+
+    // Delay slightly to ensure file handles are completely closed, then run and quit
+    setTimeout(() => {
+      try {
+        const { exec } = require('child_process');
+        // On Windows, use 'start' to trigger UAC elevation prompt and run completely detached
+        const cmd = `start "" "${tempPath}"`;
+        exec(cmd, (err) => {
+          if (err) {
+            console.error('Failed to run installer with start command:', err);
+            // Fallback to direct execution if 'start' fails
+            exec(`"${tempPath}"`);
+          }
+        });
+      } catch (err) {
+        console.error('Failed to execute installer:', err);
+      }
+      // Quit Electron immediately to release all file locks
+      app.quit();
+    }, 1000);
+  });
 });

@@ -18,6 +18,12 @@ import { HistorialClinico } from './pages/HistorialClinico';
 import { Reportes } from './pages/Reportes';
 import { Configuracion } from './pages/Configuracion';
 
+declare global {
+  interface Window {
+    electron?: any;
+  }
+}
+
 const MainAppContent: React.FC = () => {
   const [activeModule, setActiveModule] = useState<string>('Inicio');
   const [isQuickApptOpen, setIsQuickApptOpen] = useState(false);
@@ -135,6 +141,41 @@ const MainAppContent: React.FC = () => {
     const isPC = !isAndroid;
 
     const handleStartDownload = async (url: string, filename: string) => {
+      // 1. Electron Native Update Manager (Direct background Node download and auto-launch)
+      if (window.electron && isPC) {
+        setDownloadState('downloading');
+        setDownloadProgress(0);
+        setDownloadedBytes('0.0 MB');
+        setDownloadSpeed('Conectando...');
+        
+        const cleanProgress = window.electron.onProgress((data: any) => {
+          setDownloadProgress(data.progress);
+          setDownloadSpeed(data.speed);
+          setDownloadedBytes(data.downloadedBytes);
+        });
+        
+        const cleanCompleted = window.electron.onCompleted(() => {
+          setDownloadState('completed');
+          setDownloadProgress(100);
+          cleanProgress();
+          cleanCompleted();
+          cleanError();
+        });
+        
+        const cleanError = window.electron.onError((err: any) => {
+          console.error('Electron update error:', err);
+          setDownloadState('error');
+          setDownloadProgress(null);
+          cleanProgress();
+          cleanCompleted();
+          cleanError();
+        });
+        
+        window.electron.startUpdate(url);
+        return;
+      }
+
+      // 2. Hybrid Browser / Mobile Fallback
       try {
         setDownloadState('downloading');
         setDownloadProgress(0);
@@ -275,7 +316,7 @@ const MainAppContent: React.FC = () => {
                 {downloadState === 'completed' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', textAlign: 'center', color: '#10b981' }}>
                     <span style={{ fontSize: '13px', fontWeight: 600 }}>✓ Descarga Completada</span>
-                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Abra el archivo "XESSIA_Setup.exe" en su carpeta de descargas para aplicar la actualización.</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Iniciando instalador y aplicando actualización... La aplicación se cerrará automáticamente en un momento.</span>
                   </div>
                 )}
                 
