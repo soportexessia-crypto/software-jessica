@@ -23,7 +23,7 @@
   ${If} $2 != ""
     ; Display YES/NO/CANCEL dialog in Spanish (only checking IDYES and IDNO, Cancel naturally falls through to Abort)
     MessageBox MB_YESNOCANCEL|MB_ICONQUESTION \
-      "Se ha detectado una instalacion previa de XESSIA Software Jessica.$\n$\n¿Que deseas hacer?$\n$\n- [SI]: ACTUALIZAR la aplicacion conservando tus datos (esto cerrara automaticamente cualquier proceso activo).$\n- [NO]: ELIMINAR / DESINSTALAR la version anterior por completo antes de continuar.$\n- [CANCELAR]: SALIR del instalador sin realizar cambios." \
+      "Se ha detectado una instalacion previa de XESSIA.$\n$\n¿Que deseas hacer?$\n$\n- [SI]: ACTUALIZAR la aplicacion conservando tus datos (esto cerrara automaticamente cualquier proceso activo).$\n- [NO]: ELIMINAR / DESINSTALAR la version anterior por completo antes de continuar.$\n- [CANCELAR]: SALIR del instalador sin realizar cambios." \
       /SD IDYES IDYES Upgrade IDNO Uninstall
 
     ; Fallback if they click Cancel (neither Yes nor No)
@@ -31,11 +31,13 @@
 
     Upgrade:
       ; Force kill any running processes of the app to prevent file-locking
+      ExecWait 'taskkill /F /IM "XESSIA.exe" /T'
       ExecWait 'taskkill /F /IM "XESSIA Software Jessica.exe" /T'
       Goto EndOfDetect
 
     Uninstall:
       ; Close the running processes first to prevent locked uninstaller
+      ExecWait 'taskkill /F /IM "XESSIA.exe" /T'
       ExecWait 'taskkill /F /IM "XESSIA Software Jessica.exe" /T'
       ; Run the uninstaller of the previous version
       ExecWait '$2'
@@ -46,6 +48,7 @@
     EndOfDetect:
   ${Else}
     ; If no registry entry exists, but a zombie process is running, terminate it to prevent lock
+    ExecWait 'taskkill /F /IM "XESSIA.exe" /T'
     ExecWait 'taskkill /F /IM "XESSIA Software Jessica.exe" /T'
   ${EndIf}
 !macroend

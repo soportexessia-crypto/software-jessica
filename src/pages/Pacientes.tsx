@@ -64,6 +64,15 @@ export const Pacientes: React.FC = () => {
 
   const [formCompanionPhone, setFormCompanionPhone] = useState('');
   const [formCompanionName, setFormCompanionName] = useState('');
+  const [formWhatsapp, setFormWhatsapp] = useState('');
+  const [useSameNumberForWhatsapp, setUseSameNumberForWhatsapp] = useState(true);
+
+  // Auto-copy phone to whatsapp if the checkbox is checked
+  useEffect(() => {
+    if (useSameNumberForWhatsapp) {
+      setFormWhatsapp(formPhone);
+    }
+  }, [formPhone, useSameNumberForWhatsapp]);
 
   // ========= ESTADOS DEL MODAL DE HISTORIAL CLÍNICO =========
   const [isClinicalModalOpen, setIsClinicalModalOpen] = useState(false);
@@ -141,6 +150,8 @@ export const Pacientes: React.FC = () => {
         name: formName,
         document: formDoc,
         phone: formPhone,
+        whatsapp: formWhatsapp,
+        useSameNumberForWhatsapp,
         address: formAddress,
         birthDate: formBirth,
         gender: formGender,
@@ -153,7 +164,7 @@ export const Pacientes: React.FC = () => {
       };
       localStorage.setItem('xessia_draft_patient', JSON.stringify(draft));
     }
-  }, [isModalOpen, modalMode, formName, formDoc, formPhone, formAddress, formBirth, formGender, formEmail, formEps, formAllergies, formObs, formCompanionPhone, formCompanionName]);
+  }, [isModalOpen, modalMode, formName, formDoc, formPhone, formWhatsapp, useSameNumberForWhatsapp, formAddress, formBirth, formGender, formEmail, formEps, formAllergies, formObs, formCompanionPhone, formCompanionName]);
 
   // Recuperar borrador de nota clínica para cada paciente específico
   useEffect(() => {
@@ -183,6 +194,8 @@ export const Pacientes: React.FC = () => {
         setFormName(draft.name || '');
         setFormDoc(draft.document || '');
         setFormPhone(draft.phone || '');
+        setFormWhatsapp(draft.whatsapp || '');
+        setUseSameNumberForWhatsapp(draft.useSameNumberForWhatsapp !== undefined ? draft.useSameNumberForWhatsapp : true);
         setFormAddress(draft.address || '');
         setFormBirth(draft.birthDate || '');
         setFormGender(draft.gender || 'Femenino');
@@ -200,6 +213,8 @@ export const Pacientes: React.FC = () => {
       setFormName('');
       setFormDoc('');
       setFormPhone('');
+      setFormWhatsapp('');
+      setUseSameNumberForWhatsapp(true);
       setFormAddress('');
       setFormBirth('');
       setFormGender('Femenino');
@@ -218,6 +233,8 @@ export const Pacientes: React.FC = () => {
     setFormName(p.name);
     setFormDoc(p.document);
     setFormPhone(p.phone);
+    setFormWhatsapp(p.whatsapp || '');
+    setUseSameNumberForWhatsapp(p.phone === p.whatsapp || !p.whatsapp);
     setFormAddress(p.address);
     setFormBirth(p.birthDate);
     setFormGender(p.gender);
@@ -233,12 +250,13 @@ export const Pacientes: React.FC = () => {
   const handleSubmitForm = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const whatsappVal = useSameNumberForWhatsapp ? formPhone : formWhatsapp;
       if (modalMode === 'create') {
         const newP = await addPatient({
           name: formName,
           document: formDoc,
           phone: formPhone,
-          whatsapp: formPhone.replace(/[^0-9]/g, ''),
+          whatsapp: whatsappVal.replace(/[^0-9]/g, ''),
           address: formAddress,
           birthDate: formBirth,
           gender: formGender,
@@ -256,7 +274,7 @@ export const Pacientes: React.FC = () => {
           name: formName,
           document: formDoc,
           phone: formPhone,
-          whatsapp: formPhone.replace(/[^0-9]/g, ''),
+          whatsapp: whatsappVal.replace(/[^0-9]/g, ''),
           address: formAddress,
           birthDate: formBirth,
           gender: formGender,
@@ -809,6 +827,50 @@ export const Pacientes: React.FC = () => {
 
                 <div className="grid-2">
                   <div className="form-group">
+                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>Teléfono WhatsApp *</span>
+                      <button 
+                        type="button" 
+                        className={`text-xs px-2 py-0.5 rounded transition ${useSameNumberForWhatsapp ? 'bg-primary-100 text-primary-700 font-medium' : 'bg-slate-100 text-slate-500'}`}
+                        style={{ 
+                          fontSize: '11px', 
+                          border: 'none', 
+                          cursor: 'pointer',
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          background: useSameNumberForWhatsapp ? 'rgba(37, 211, 102, 0.1)' : '#f1f5f9',
+                          color: useSameNumberForWhatsapp ? '#25D366' : '#64748b',
+                          fontWeight: 'bold'
+                        }}
+                        onClick={() => setUseSameNumberForWhatsapp(!useSameNumberForWhatsapp)}
+                      >
+                        {useSameNumberForWhatsapp ? '✓ Mismo del celular' : 'Usar número de celular'}
+                      </button>
+                    </label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      required
+                      value={useSameNumberForWhatsapp ? formPhone : formWhatsapp} 
+                      disabled={useSameNumberForWhatsapp}
+                      onChange={(e) => setFormWhatsapp(e.target.value)} 
+                      placeholder={useSameNumberForWhatsapp ? formPhone || 'Mismo número de celular' : 'Ej: +57 312 849 5723'} 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Email de Contacto</label>
+                    <input 
+                      type="email" 
+                      className="form-input" 
+                      value={formEmail} 
+                      onChange={(e) => setFormEmail(e.target.value)} 
+                      placeholder="ejemplo@correo.com" 
+                    />
+                  </div>
+                </div>
+
+                <div className="grid-2">
+                  <div className="form-group">
                     <label className="form-label">Celular del Acompañante o Familiar</label>
                     <input 
                       type="text" 
@@ -864,17 +926,6 @@ export const Pacientes: React.FC = () => {
                       placeholder="Sura, Sanitas, Particular" 
                     />
                   </div>
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Email de Contacto</label>
-                  <input 
-                    type="email" 
-                    className="form-input" 
-                    value={formEmail} 
-                    onChange={(e) => setFormEmail(e.target.value)} 
-                    placeholder="ejemplo@correo.com" 
-                  />
                 </div>
 
                 <div className="form-group">

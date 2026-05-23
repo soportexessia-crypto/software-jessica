@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">XESSIA Software Jessica</string>
-    <string name="title_activity_main">XESSIA Software Jessica</string>
+    <string name="app_name">XESSIA</string>
+    <string name="title_activity_main">XESSIA</string>
     <string name="package_name">com.xessia.softwarejessica</string>
     <string name="custom_url_scheme">com.xessia.softwarejessica</string>
 </resources>

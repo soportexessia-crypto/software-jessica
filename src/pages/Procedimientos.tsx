@@ -4,7 +4,7 @@ import type { Procedure } from '../context/AppContext';
 import { Search, Star, Clock, Stethoscope, AlertTriangle, Plus, X, Edit3 } from 'lucide-react';
 
 export const Procedimientos: React.FC = () => {
-  const { procedures, doctors, showToast } = useApp();
+  const { procedures, doctors, addProcedure, updateProcedure, deleteProcedure } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('TODOS');
   
@@ -62,38 +62,52 @@ export const Procedimientos: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     const finalDuration = formDuration === '' ? 30 : formDuration;
     const finalPrice = formPrice === '' ? 0 : formPrice;
 
-    if (editingProc) {
-      editingProc.name = formName;
-      editingProc.category = formCategory;
-      editingProc.duration = finalDuration;
-      editingProc.price = finalPrice;
-      editingProc.color = formColor;
-      editingProc.specialist = formSpecialist;
-      editingProc.alert = formAlert || undefined;
-      editingProc.favorite = formFavorite;
-      showToast('Tratamiento actualizado.', 'success');
-    } else {
-      procedures.push({
-        code: formCode,
-        name: formName,
-        category: formCategory,
-        duration: finalDuration,
-        price: finalPrice,
-        color: formColor,
-        specialist: formSpecialist,
-        alert: formAlert || undefined,
-        favorite: formFavorite
-      });
-      showToast('Nuevo tratamiento creado.', 'success');
+    try {
+      if (editingProc && editingProc.id) {
+        await updateProcedure(editingProc.id, {
+          name: formName,
+          category: formCategory,
+          duration: finalDuration,
+          price: finalPrice,
+          color: formColor,
+          specialist: formSpecialist,
+          alert: formAlert || undefined,
+          favorite: formFavorite
+        });
+      } else {
+        await addProcedure({
+          code: formCode,
+          name: formName,
+          category: formCategory,
+          duration: finalDuration,
+          price: finalPrice,
+          color: formColor,
+          specialist: formSpecialist,
+          alert: formAlert || undefined,
+          favorite: formFavorite
+        });
+      }
+      setIsModalOpen(false);
+    } catch (err) {
+      console.error(err);
     }
-    
-    setIsModalOpen(false);
+  };
+
+  const handleDeleteProc = async (id: string) => {
+    if (window.confirm('¿Está seguro de eliminar este tratamiento? Esta acción no se puede deshacer.')) {
+      try {
+        await deleteProcedure(id);
+        setIsModalOpen(false);
+      } catch (err) {
+        console.error(err);
+      }
+    }
   };
 
   const filteredProcedures = procedures.filter(proc => {
@@ -379,9 +393,23 @@ export const Procedimientos: React.FC = () => {
                 </div>
 
               </div>
-              <div className="modal-footer">
-                <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Cancelar</button>
-                <button type="submit" className="btn btn-primary">Guardar Tratamiento</button>
+              <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', width: '100%' }}>
+                <div>
+                  {editingProc && (
+                    <button 
+                      type="button" 
+                      className="btn btn-danger" 
+                      style={{ backgroundColor: 'var(--state-cancelada)', color: 'white', padding: '8px 16px', borderRadius: 'var(--radius-md)', border: 'none', cursor: 'pointer' }}
+                      onClick={() => handleDeleteProc(editingProc.id!)}
+                    >
+                      Eliminar
+                    </button>
+                  )}
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setIsModalOpen(false)}>Cancelar</button>
+                  <button type="submit" className="btn btn-primary">Guardar Tratamiento</button>
+                </div>
               </div>
             </form>
           </div>

@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'com.xessia.softwarejessica',
-  appName: 'XESSIA Software Jessica',
+  appName: 'XESSIA',
   webDir: 'dist',
   server: {
     url: 'https://software-jessica-production.up.railway.app',

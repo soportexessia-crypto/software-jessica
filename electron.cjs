@@ -14,7 +14,7 @@ function createWindow() {
     height: 800,
     minWidth: 1024,
     minHeight: 700,
-    title: "XESSIA Software Jessica",
+    title: "XESSIA",
     icon: path.join(__dirname, 'dist', 'img', 'Logo.png'),
     show: false,
     webPreferences: {

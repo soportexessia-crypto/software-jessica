@@ -13,7 +13,7 @@
     "electron:dev": "electron .",
     "electron:build": "npm run build:obfuscate && electron-builder",
     "mobile:sync": "npm run build:obfuscate && npx cap sync",
-    "mobile:build": "npm run mobile:sync && powershell -Command \"$env:ANDROID_HOME='C:\\Users\\Soren\\AppData\\Local\\Android\\Sdk'; cd android; .\\gradlew.bat assembleDebug\" && powershell -Command \"Copy-Item -Path android\\app\\build\\outputs\\apk\\debug\\app-debug.apk -Destination release\\XESSIA_Software_Jessica.apk -Force\"",
+    "mobile:build": "npm run mobile:sync && powershell -Command \"$env:ANDROID_HOME='C:\\Users\\Soren\\AppData\\Local\\Android\\Sdk'; cd android; .\\gradlew.bat assembleDebug\" && powershell -Command \"Copy-Item -Path android\\app\\build\\outputs\\apk\\debug\\app-debug.apk -Destination release\\XESSIA.apk -Force\"",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -45,8 +45,11 @@
   },
   "build": {
     "appId": "com.xessia.softwarejessica",
-    "productName": "XESSIA Software Jessica",
+    "productName": "XESSIA",
     "asar": true,
+    "asarUnpack": [
+      "dist/img/Logo.png"
+    ],
     "directories": {
       "output": "release"
     },

@@ -1,13 +1,26 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Database, ShieldCheck, HardDrive, RefreshCw, Wifi } from 'lucide-react';
+import { Database, ShieldCheck, HardDrive, RefreshCw, Wifi, X } from 'lucide-react';
+
+interface DraftItem {
+  key: string;
+  displayName: string;
+  value: string;
+}
 
 export const Configuracion: React.FC = () => {
   const { patients, doctors, appointments, financials, showToast } = useApp();
 
   const [onlineStatus, setOnlineStatus] = React.useState(navigator.onLine);
   const [draftCount, setDraftCount] = React.useState(0);
-  const [activeDrafts, setActiveDrafts] = React.useState<string[]>([]);
+  const [activeDrafts, setActiveDrafts] = React.useState<DraftItem[]>([]);
+
+  // States for the draft editing modal
+  const [selectedDraft, setSelectedDraft] = React.useState<DraftItem | null>(null);
+  const [editValue, setEditValue] = React.useState<string>('');
+  const [jsonFields, setJsonFields] = React.useState<{ [key: string]: string }>({});
+  const [isJson, setIsJson] = React.useState<boolean>(false);
+  const [isEditModalOpen, setIsEditModalOpen] = React.useState<boolean>(false);
 
   React.useEffect(() => {
     const handleOnline = () => setOnlineStatus(true);
@@ -25,25 +38,136 @@ export const Configuracion: React.FC = () => {
   }, []);
 
   const updateDraftsList = () => {
-    const keys = [];
+    const items: DraftItem[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
       if (key && key.startsWith('xessia_draft_')) {
         let displayName = '';
-        if (key === 'xessia_draft_patient') displayName = 'Formulario Paciente';
-        else if (key === 'xessia_draft_quick_appt') displayName = 'Cita Rápida';
-        else if (key === 'xessia_draft_income') displayName = 'Ingreso Caja';
-        else if (key === 'xessia_draft_expense') displayName = 'Gasto Caja';
-        else if (key.startsWith('xessia_draft_note_')) {
-          displayName = 'Evolución Clínica';
+        if (key === 'xessia_draft_patient') {
+          displayName = 'Formulario Paciente';
+        } else if (key === 'xessia_draft_quick_appt') {
+          displayName = 'Cita Rápida';
+        } else if (key === 'xessia_draft_income') {
+          displayName = 'Ingreso Caja';
+        } else if (key === 'xessia_draft_expense') {
+          displayName = 'Gasto Caja';
+        } else if (key.startsWith('xessia_draft_note_')) {
+          const patientId = key.replace('xessia_draft_note_', '');
+          const patient = patients.find(p => p.id === patientId);
+          displayName = `Evolución Clínica (${patient ? patient.name : 'Paciente Desconocido'})`;
         } else {
           displayName = key.replace('xessia_draft_', '');
         }
-        keys.push(displayName);
+        items.push({
+          key,
+          displayName,
+          value: localStorage.getItem(key) || ''
+        });
       }
     }
-    setDraftCount(keys.length);
-    setActiveDrafts(keys);
+    setActiveDrafts(items);
+    setDraftCount(items.length);
+  };
+
+  const getFieldLabel = (key: string) => {
+    const labels: { [key: string]: string } = {
+      nombre: 'Nombre Completo',
+      cedula: 'Cédula de Ciudadanía',
+      eps: 'EPS / Aseguradora',
+      phone: 'Teléfono Celular',
+      whatsapp: 'Número de WhatsApp',
+      doctor: 'Doctor / Especialista',
+      observaciones: 'Observaciones Iniciales',
+      patientName: 'Nombre del Paciente',
+      doctorId: 'ID del Doctor',
+      procedure: 'Procedimiento / Tratamiento',
+      amount: 'Monto / Valor',
+      method: 'Método de Pago',
+      concept: 'Concepto / Descripción',
+      category: 'Categoría',
+      notes: 'Notas Adicionales',
+      date: 'Fecha',
+      time: 'Hora',
+      duration: 'Duración (min)'
+    };
+    return labels[key] || key;
+  };
+
+  const handleDeleteDraft = (key: string) => {
+    localStorage.removeItem(key);
+    updateDraftsList();
+    showToast('Borrador eliminado correctamente.', 'success');
+  };
+
+  const handleOpenEditModal = (draft: DraftItem) => {
+    setSelectedDraft(draft);
+    setEditValue(draft.value);
+    
+    let parsed: any = null;
+    let validJson = false;
+    try {
+      parsed = JSON.parse(draft.value);
+      validJson = typeof parsed === 'object' && parsed !== null;
+    } catch (e) {
+      validJson = false;
+    }
+    
+    setIsJson(validJson);
+    if (validJson) {
+      const fields: { [key: string]: string } = {};
+      Object.keys(parsed).forEach(k => {
+        if (typeof parsed[k] === 'object' && parsed[k] !== null) {
+          fields[k] = JSON.stringify(parsed[k]);
+        } else {
+          fields[k] = String(parsed[k] ?? '');
+        }
+      });
+      setJsonFields(fields);
+    } else {
+      setJsonFields({});
+    }
+    
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveDraft = () => {
+    if (!selectedDraft) return;
+    
+    let newValue = editValue;
+    if (isJson) {
+      try {
+        const originalObj = JSON.parse(selectedDraft.value);
+        const updatedObj = { ...originalObj };
+        Object.keys(jsonFields).forEach(k => {
+          const val = jsonFields[k];
+          if ((val.startsWith('{') && val.endsWith('}')) || (val.startsWith('[') && val.endsWith(']'))) {
+            try {
+              updatedObj[k] = JSON.parse(val);
+            } catch (e) {
+              updatedObj[k] = val;
+            }
+          } else if (val === 'true') {
+            updatedObj[k] = true;
+          } else if (val === 'false') {
+            updatedObj[k] = false;
+          } else if (!isNaN(Number(val)) && val.trim() !== '') {
+            updatedObj[k] = Number(val);
+          } else {
+            updatedObj[k] = val;
+          }
+        });
+        newValue = JSON.stringify(updatedObj);
+      } catch (e) {
+        showToast('Error al procesar los datos estructurados del borrador.', 'error');
+        return;
+      }
+    }
+    
+    localStorage.setItem(selectedDraft.key, newValue);
+    updateDraftsList();
+    setIsEditModalOpen(false);
+    setSelectedDraft(null);
+    showToast('Borrador actualizado con éxito.', 'success');
   };
 
   const handleClearDrafts = () => {
@@ -147,12 +271,8 @@ export const Configuracion: React.FC = () => {
                   <strong style={{ color: 'var(--primary)' }}>Local (Native Offline Bundle)</strong>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Servidor API (Railway):</span>
-                  <span style={{ color: 'var(--state-confirmada)', fontWeight: 600 }}>https://software-jessica-production.up.railway.app</span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Versión del Software:</span>
-                  <strong>v1.0.0 (Producción Local)</strong>
+                  <strong>v1.0.1</strong>
                 </div>
               </div>
             </div>
@@ -163,21 +283,86 @@ export const Configuracion: React.FC = () => {
                 Autoguardado en localStorage activo. Previene pérdida de textos ante cortes de luz o recargas accidentales.
               </p>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '12.5px', marginBottom: '12px', backgroundColor: 'var(--bg-app)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12.5px', marginBottom: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', backgroundColor: 'var(--bg-app)', padding: '12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-light)' }}>
                   <span>Borradores Activos en Memoria:</span>
                   <strong style={{ color: draftCount > 0 ? 'var(--primary)' : 'var(--text-light)' }}>{draftCount} borrador(es)</strong>
                 </div>
+                
                 {draftCount > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px', paddingTop: '6px', borderTop: '1px dashed var(--border-light)', fontSize: '11.5px', color: 'var(--text-muted)' }}>
-                    <span>Formularios con datos guardados:</span>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '4px' }}>
-                      {activeDrafts.map((d, i) => (
-                        <span key={i} className="badge badge-pendiente" style={{ padding: '2px 6px', borderRadius: '4px', fontSize: '10px', backgroundColor: 'var(--primary-light)', color: 'var(--primary)', border: 'none' }}>
-                          {d}
-                        </span>
-                      ))}
-                    </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
+                    {activeDrafts.map((draft) => {
+                      let snippet = draft.value;
+                      if (snippet.startsWith('{') && snippet.endsWith('}')) {
+                        try {
+                          const parsed = JSON.parse(draft.value);
+                          snippet = Object.entries(parsed)
+                            .filter(([_, v]) => typeof v !== 'object' && v)
+                            .map(([k, v]) => `${getFieldLabel(k)}: ${v}`)
+                            .join(', ');
+                        } catch (e) {
+                          // use original snippet
+                        }
+                      }
+                      if (snippet.length > 80) {
+                        snippet = snippet.substring(0, 80) + '...';
+                      }
+
+                      return (
+                        <div 
+                          key={draft.key} 
+                          className="premium-card"
+                          style={{ 
+                            display: 'flex', 
+                            flexDirection: 'column', 
+                            gap: '8px', 
+                            padding: '12px', 
+                            borderRadius: 'var(--radius-md)', 
+                            border: '1px solid var(--border-light)',
+                            boxShadow: 'none',
+                            backgroundColor: 'var(--bg-app)'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--text-dark)' }}>{draft.displayName}</span>
+                            <span style={{ fontSize: '10px', color: 'var(--text-muted)', backgroundColor: 'var(--border-light)', padding: '2px 6px', borderRadius: '4px' }}>
+                              {draft.key.replace('xessia_draft_', '')}
+                            </span>
+                          </div>
+                          
+                          <div style={{ fontSize: '11.5px', color: 'var(--text-muted)', fontStyle: 'italic', wordBreak: 'break-all' }}>
+                            {snippet || 'Sin contenido'}
+                          </div>
+                          
+                          <div style={{ display: 'flex', gap: '8px', marginTop: '4px', borderTop: '1px solid var(--border-light)', paddingTop: '8px' }}>
+                            <button 
+                              className="btn btn-secondary" 
+                              style={{ padding: '4px 10px', fontSize: '11px', flex: 1, justifyContent: 'center', minHeight: 'auto', height: '28px' }}
+                              onClick={() => handleOpenEditModal(draft)}
+                            >
+                              ✏️ Editar
+                            </button>
+                            <button 
+                              className="btn" 
+                              style={{ 
+                                padding: '4px 10px', 
+                                fontSize: '11px', 
+                                backgroundColor: 'var(--state-cancelada-bg)', 
+                                color: 'var(--state-cancelada)', 
+                                border: '1px solid #fca5a5',
+                                flex: 1,
+                                justifyContent: 'center',
+                                minHeight: 'auto',
+                                height: '28px'
+                              }}
+                              onClick={() => handleDeleteDraft(draft.key)}
+                            >
+                              🗑️ Eliminar
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -190,11 +375,15 @@ export const Configuracion: React.FC = () => {
                     color: 'var(--state-cancelada)', 
                     border: '1px solid #fca5a5',
                     fontSize: '12px',
-                    padding: '8px 14px'
+                    padding: '8px 14px',
+                    width: '100%',
+                    marginTop: '8px',
+                    display: 'flex',
+                    justifyContent: 'center'
                   }} 
                   onClick={handleClearDrafts}
                 >
-                  Vaciar Borradores Manualmente
+                  Vaciar Todos los Borradores
                 </button>
               )}
             </div>
@@ -248,14 +437,6 @@ export const Configuracion: React.FC = () => {
           <h3>Apariencia y Parámetros Clínicos</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12.5px', marginTop: '10px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Tema Visual Activado:</span>
-              <strong>Tema Claro Clínico</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Moneda de Caja:</span>
-              <strong>Pesos Colombianos ($ COP)</strong>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>Canal de WhatsApp Remoto:</span>
               <strong style={{ color: 'var(--state-confirmada)' }}>En Línea</strong>
             </div>
@@ -263,6 +444,79 @@ export const Configuracion: React.FC = () => {
         </div>
 
       </div>
+
+      {/* Modal para Editar Borrador */}
+      {isEditModalOpen && selectedDraft && (
+        <div className="modal-backdrop" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1100 }}>
+          <div className="premium-card modal-content" style={{ width: '100%', maxWidth: '500px', padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', position: 'relative' }}>
+            <button 
+              style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-light)' }}
+              onClick={() => { setIsEditModalOpen(false); setSelectedDraft(null); }}
+            >
+              <X size={20} />
+            </button>
+            
+            <h3>Editar Borrador</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '-6px' }}>
+              <span className="badge badge-pendiente" style={{ padding: '3px 8px', borderRadius: '4px', fontSize: '11px', border: 'none', backgroundColor: 'var(--primary-light)', color: 'var(--primary)' }}>
+                {selectedDraft.displayName}
+              </span>
+            </div>
+            <p className="text-muted" style={{ fontSize: '12px', marginTop: '-6px' }}>
+              Modifique los campos temporales. Los cambios se aplicarán inmediatamente en el respectivo formulario.
+            </p>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', maxHeight: '320px', overflowY: 'auto', paddingRight: '6px', margin: '4px 0' }}>
+              {isJson ? (
+                Object.keys(jsonFields).map((fieldKey) => (
+                  <div key={fieldKey} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-dark)' }}>
+                      {getFieldLabel(fieldKey)}
+                    </label>
+                    <input 
+                      type="text" 
+                      className="form-input" 
+                      style={{ padding: '8px 12px', fontSize: '13px' }}
+                      value={jsonFields[fieldKey]} 
+                      onChange={(e) => setJsonFields({ ...jsonFields, [fieldKey]: e.target.value })}
+                    />
+                  </div>
+                ))
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '11.5px', fontWeight: 600, color: 'var(--text-dark)' }}>
+                    Texto Borrador de Evolución Clínica
+                  </label>
+                  <textarea 
+                    className="form-input" 
+                    rows={8}
+                    style={{ padding: '10px 12px', fontSize: '13px', resize: 'vertical', lineHeight: '1.4' }}
+                    value={editValue} 
+                    onChange={(e) => setEditValue(e.target.value)}
+                  />
+                </div>
+              )}
+            </div>
+            
+            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+              <button 
+                className="btn btn-secondary" 
+                style={{ flex: 1, justifyContent: 'center' }}
+                onClick={() => { setIsEditModalOpen(false); setSelectedDraft(null); }}
+              >
+                Cancelar
+              </button>
+              <button 
+                className="btn btn-primary" 
+                style={{ flex: 1, justifyContent: 'center' }}
+                onClick={handleSaveDraft}
+              >
+                Guardar Cambios
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

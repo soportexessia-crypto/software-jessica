@@ -23,7 +23,7 @@ const MainAppContent: React.FC = () => {
   const [isQuickApptOpen, setIsQuickApptOpen] = useState(false);
   const { toasts, removeToast, isAuthenticated, loading } = useApp();
 
-  const CLIENT_VERSION = '1.0.0';
+  const CLIENT_VERSION = '1.0.1';
   const [checkingVersion, setCheckingVersion] = useState(true);
   const [isForceUpdateRequired, setIsForceUpdateRequired] = useState(false);
   const [isLiveUpdating, setIsLiveUpdating] = useState(false);

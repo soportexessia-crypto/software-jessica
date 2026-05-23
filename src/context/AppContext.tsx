@@ -13,6 +13,7 @@ export interface Doctor {
 }
 
 export interface Procedure {
+  id?: string;
   code: string;
   name: string;
   category: 'CONSULTAS' | 'LIMPIEZA Y PREVENCIÓN' | 'RADIOLOGÍA' | 'ORTODONCIA' | 'CIRUGÍA' | 'RESTAURACIÓN Y ESTÉTICA' | 'PRÓTESIS Y REHABILITACIÓN';
@@ -104,6 +105,10 @@ interface AppContextType {
   updatePatient: (id: string, patient: Partial<Patient>) => Promise<void>;
   deletePatient: (id: string) => Promise<void>;
   updateOdontogram: (patientId: string, toothNumber: number, section: string, state: 'caries' | 'conducto' | 'corona' | 'none') => Promise<void>;
+  
+  addProcedure: (procedure: Omit<Procedure, 'id'>) => Promise<Procedure>;
+  updateProcedure: (id: string, procedure: Partial<Procedure>) => Promise<void>;
+  deleteProcedure: (id: string) => Promise<void>;
   
   addAppointment: (appointment: Omit<Appointment, 'id' | 'paidAmount' | 'paymentStatus'>) => Promise<void>;
   updateAppointment: (id: string, appointment: Partial<Appointment>) => Promise<void>;
@@ -423,6 +428,42 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const addProcedure = async (newProc: Omit<Procedure, 'id'>): Promise<Procedure> => {
+    try {
+      const savedProc = await api.post('/procedures', newProc);
+      const mapped: Procedure = { ...savedProc, id: savedProc._id };
+      setProcedures(prev => [...prev, mapped]);
+      showToast('Tratamiento registrado correctamente', 'success');
+      return mapped;
+    } catch (err: any) {
+      showToast(err.message || 'Error al guardar tratamiento', 'error');
+      throw err;
+    }
+  };
+
+  const updateProcedure = async (id: string, updatedFields: Partial<Procedure>): Promise<void> => {
+    try {
+      const savedProc = await api.patch(`/procedures/${id}`, updatedFields);
+      const mapped: Procedure = { ...savedProc, id: savedProc._id };
+      setProcedures(prev => prev.map(p => p.id === id ? mapped : p));
+      showToast('Tratamiento actualizado correctamente', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Error al actualizar tratamiento', 'error');
+      throw err;
+    }
+  };
+
+  const deleteProcedure = async (id: string): Promise<void> => {
+    try {
+      await api.delete(`/procedures/${id}`);
+      setProcedures(prev => prev.filter(p => p.id !== id));
+      showToast('Tratamiento eliminado correctamente', 'success');
+    } catch (err: any) {
+      showToast(err.message || 'Error al eliminar tratamiento', 'error');
+      throw err;
+    }
+  };
+
   const getPatientById = (id: string) => patients.find(p => p.id === id);
   const getDoctorById = (id: string) => doctors.find(d => d.id === id);
   const getProcedureByCode = (code: string) => procedures.find(pr => pr.code === code);
@@ -451,6 +492,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updatePatient,
       deletePatient,
       updateOdontogram,
+      
+      addProcedure,
+      updateProcedure,
+      deleteProcedure,
       
       addAppointment,
       updateAppointment,

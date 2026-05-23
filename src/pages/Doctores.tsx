@@ -45,7 +45,7 @@ export const Doctores: React.FC = () => {
 
   // Get active appointments for selected doctor
   const doctorAppointments = selectedDoctor 
-    ? appointments.filter(a => a.doctorId === selectedDoctor.id && a.status !== 'cancelada')
+    ? appointments.filter(a => a.doctorId === selectedDoctor.id && a.status !== 'cancelada' && a.status !== 'finalizada')
     : [];
 
   const handleOpenCreate = () => {
