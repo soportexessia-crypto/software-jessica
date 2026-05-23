@@ -19,6 +19,18 @@ import {
   X
 } from 'lucide-react';
 
+function getAge(birthDateString: string): number {
+  if (!birthDateString) return 0;
+  const today = new Date();
+  const birthDate = new Date(birthDateString);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+}
+
 export const Pacientes: React.FC = () => {
   const { 
     patients, 
@@ -29,7 +41,8 @@ export const Pacientes: React.FC = () => {
     updatePatient, 
     deletePatient,
     addFinancialRecord,
-    showToast
+    showToast,
+    showConfirm
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -138,9 +151,16 @@ export const Pacientes: React.FC = () => {
   };
 
   const handleDeleteClinicalNote = (idx: number) => {
-    if (!window.confirm('¿Eliminar esta nota del historial clínico? Esta acción no se puede deshacer.')) return;
-    setClinicalNotes(prev => prev.filter((_, i) => i !== idx));
-    showToast('Nota eliminada. Guarda los cambios para confirmar.', 'info');
+    showConfirm({
+      title: 'Eliminar Nota',
+      message: '¿Eliminar esta nota del historial clínico? Esta acción no se puede deshacer.',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      onConfirm: () => {
+        setClinicalNotes(prev => prev.filter((_, i) => i !== idx));
+        showToast('Nota eliminada. Guarda los cambios para confirmar.', 'info');
+      }
+    });
   };
 
   // Sincronización de borrador seguro de Pacientes a localStorage
@@ -293,10 +313,16 @@ export const Pacientes: React.FC = () => {
   };
 
   const handleDelete = (id: string) => {
-    if (window.confirm('¿Está seguro de eliminar este paciente? Sus citas pendientes serán canceladas.')) {
-      deletePatient(id);
-      setSelectedPatientId(patients.find(p => p.id !== id)?.id || '');
-    }
+    showConfirm({
+      title: 'Eliminar Paciente',
+      message: '¿Está seguro de eliminar este paciente? Sus citas pendientes serán canceladas.',
+      confirmText: 'Eliminar',
+      cancelText: 'Cancelar',
+      onConfirm: () => {
+        deletePatient(id);
+        setSelectedPatientId(patients.find(p => p.id !== id)?.id || '');
+      }
+    });
   };
 
   const handleAddEvolutionNote = (e: React.FormEvent) => {
@@ -532,7 +558,7 @@ export const Pacientes: React.FC = () => {
                   <h3 style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '6px' }}>Perfil Médico</h3>
                   
                   <div style={{ fontSize: '13.5px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                    <div>Nacimiento: <strong>{selectedPatient.birthDate}</strong></div>
+                    <div>Nacimiento: <strong>{selectedPatient.birthDate} ({getAge(selectedPatient.birthDate)} años)</strong></div>
                     <div>Sexo: <strong>{selectedPatient.gender}</strong></div>
                     
                     {/* Allergy alert */}
@@ -819,8 +845,8 @@ export const Pacientes: React.FC = () => {
                       className="form-input" 
                       required 
                       value={formPhone} 
-                      onChange={(e) => setFormPhone(e.target.value)} 
-                      placeholder="Ej: +57 312 849 5723" 
+                      onChange={(e) => setFormPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))} 
+                      placeholder="Ej: 3128495723" 
                     />
                   </div>
                 </div>
@@ -853,8 +879,8 @@ export const Pacientes: React.FC = () => {
                       required
                       value={useSameNumberForWhatsapp ? formPhone : formWhatsapp} 
                       disabled={useSameNumberForWhatsapp}
-                      onChange={(e) => setFormWhatsapp(e.target.value)} 
-                      placeholder={useSameNumberForWhatsapp ? formPhone || 'Mismo número de celular' : 'Ej: +57 312 849 5723'} 
+                      onChange={(e) => setFormWhatsapp(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))} 
+                      placeholder={useSameNumberForWhatsapp ? formPhone || 'Mismo número de celular' : 'Ej: 3128495723'} 
                     />
                   </div>
                   <div className="form-group">
@@ -876,8 +902,8 @@ export const Pacientes: React.FC = () => {
                       type="text" 
                       className="form-input" 
                       value={formCompanionPhone} 
-                      onChange={(e) => setFormCompanionPhone(e.target.value)} 
-                      placeholder="Ej: 987654321" 
+                      onChange={(e) => setFormCompanionPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))} 
+                      placeholder="Ej: 3128495723" 
                     />
                   </div>
                   <div className="form-group">
@@ -912,7 +938,6 @@ export const Pacientes: React.FC = () => {
                     >
                       <option value="Femenino">Femenino</option>
                       <option value="Masculino">Masculino</option>
-                      <option value="Otro">Otro</option>
                     </select>
                   </div>
                   <div className="form-group">
@@ -1035,7 +1060,7 @@ export const Pacientes: React.FC = () => {
           <div className="modal-content fade-in" style={{ maxWidth: '680px' }}>
             <div className="modal-header">
               <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                ✏️ Editar Historial Clínico
+                <Edit3 size={18} style={{ color: 'var(--primary)' }} /> Editar Historial Clínico
                 <span style={{ fontSize: '13px', fontWeight: 400, color: 'var(--text-muted)' }}>— {selectedPatient.name}</span>
               </h2>
               <button className="close-btn" onClick={() => setIsClinicalModalOpen(false)}>

@@ -27,7 +27,7 @@ declare global {
 const MainAppContent: React.FC = () => {
   const [activeModule, setActiveModule] = useState<string>('Inicio');
   const [isQuickApptOpen, setIsQuickApptOpen] = useState(false);
-  const { toasts, removeToast, isAuthenticated, loading } = useApp();
+  const { toasts, removeToast, isAuthenticated, loading, confirmConfig, showConfirm } = useApp();
 
   const CLIENT_VERSION = '1.0.1';
   const [checkingVersion, setCheckingVersion] = useState(true);
@@ -474,6 +474,100 @@ const MainAppContent: React.FC = () => {
           );
         })}
       </div>
+
+      {/* 6. Global Glassmorphic Confirmation Modal */}
+      {confirmConfig && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.4)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999999,
+            animation: 'fadeIn 0.2s ease',
+            padding: '16px'
+          }}
+          onClick={() => {
+            if (confirmConfig.onCancel) confirmConfig.onCancel();
+            showConfirm(null);
+          }}
+        >
+          <div 
+            style={{
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              border: '1px solid rgba(255, 255, 255, 0.8)',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '24px 32px',
+              width: '100%',
+              maxWidth: '440px',
+              animation: 'scaleUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '16px'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div 
+                style={{
+                  backgroundColor: 'var(--state-cancelada-bg)',
+                  color: 'var(--state-cancelada)',
+                  width: '40px',
+                  height: '40px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0
+                }}
+              >
+                <AlertTriangle size={20} />
+              </div>
+              <h2 style={{ fontSize: '18px', fontWeight: 800, color: 'var(--secondary)', margin: 0 }}>
+                {confirmConfig.title}
+              </h2>
+            </div>
+            
+            <p style={{ fontSize: '13.5px', color: 'var(--text-main)', lineHeight: '1.5', margin: 0 }}>
+              {confirmConfig.message}
+            </p>
+            
+            <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+              <button 
+                className="btn btn-secondary" 
+                style={{ flex: 1, padding: '10px', fontSize: '12.5px', fontWeight: 600 }}
+                onClick={() => {
+                  if (confirmConfig.onCancel) confirmConfig.onCancel();
+                  showConfirm(null);
+                }}
+              >
+                {confirmConfig.cancelText || 'Cancelar'}
+              </button>
+              <button 
+                className="btn btn-primary" 
+                style={{ 
+                  flex: 1, 
+                  padding: '10px', 
+                  fontSize: '12.5px', 
+                  fontWeight: 600,
+                  backgroundColor: 'var(--state-cancelada)',
+                  borderColor: 'var(--state-cancelada)'
+                }}
+                onClick={() => {
+                  confirmConfig.onConfirm();
+                  showConfirm(null);
+                }}
+              >
+                {confirmConfig.confirmText || 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -108,13 +108,16 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
     showToast
   } = useApp();
 
-  // Form states
+
+
   const [patientMode, setPatientMode] = useState<'existente' | 'nuevo'>('existente');
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientDoc, setNewPatientDoc] = useState('');
   const [newPatientPhone, setNewPatientPhone] = useState('');
-  
+  const [hasDifferentWhatsApp, setHasDifferentWhatsApp] = useState(false);
+  const [newPatientWhatsApp, setNewPatientWhatsApp] = useState('');
+
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
   const [selectedProcedureCode, setSelectedProcedureCode] = useState('');
   const [date, setDate] = useState('');
@@ -122,7 +125,10 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
   const [notes, setNotes] = useState('');
   const [duration, setDuration] = useState(30);
   const [price, setPrice] = useState(0);
+  const [customPrice, setCustomPrice] = useState(0);
   const [discount, setDiscount] = useState(0);
+  const [paidAmount, setPaidAmount] = useState(0);
+  const [paymentMethod, setPaymentMethod] = useState<'Efectivo' | 'Tarjeta' | 'Transferencia' | 'Nequi' | 'Daviplata' | 'Bancolombia'>('Efectivo');
 
   // Alerts states
   const [alertMsg, setAlertMsg] = useState<string | null>(null);
@@ -141,12 +147,17 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
           setNewPatientName(draft.newPatientName || '');
           setNewPatientDoc(draft.newPatientDoc || '');
           setNewPatientPhone(draft.newPatientPhone || '');
+          setHasDifferentWhatsApp(draft.hasDifferentWhatsApp || false);
+          setNewPatientWhatsApp(draft.newPatientWhatsApp || '');
           setSelectedDoctorId(draft.selectedDoctorId || doctors[0]?.id || '');
           setSelectedProcedureCode(draft.selectedProcedureCode || procedures[0]?.code || '');
           setDate(draft.date || '');
           setTime(draft.time || '09:00');
           setNotes(draft.notes || '');
           setDiscount(draft.discount || 0);
+          setCustomPrice(draft.customPrice || 0);
+          setPaidAmount(draft.paidAmount || 0);
+          setPaymentMethod(draft.paymentMethod || 'Efectivo');
           setAlertMsg(null);
           setDoctorMismatch(false);
           setSuccess(false);
@@ -160,9 +171,14 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
       setNewPatientName('');
       setNewPatientDoc('');
       setNewPatientPhone('');
+      setHasDifferentWhatsApp(false);
+      setNewPatientWhatsApp('');
       setSelectedDoctorId(doctors[0]?.id || '');
       setSelectedProcedureCode(procedures[0]?.code || '');
       setDiscount(0);
+      setCustomPrice(0);
+      setPaidAmount(0);
+      setPaymentMethod('Efectivo');
       
       // Default to today's date
       const today = new Date();
@@ -185,16 +201,42 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
         newPatientName,
         newPatientDoc,
         newPatientPhone,
+        hasDifferentWhatsApp,
+        newPatientWhatsApp,
         selectedDoctorId,
         selectedProcedureCode,
         date,
         time,
         notes,
-        discount
+        discount,
+        customPrice,
+        paidAmount,
+        paymentMethod
       };
       localStorage.setItem('xessia_draft_quick_appt', JSON.stringify(draft));
     }
-  }, [isOpen, success, patientMode, selectedPatientId, newPatientName, newPatientDoc, newPatientPhone, selectedDoctorId, selectedProcedureCode, date, time, notes, discount]);
+  }, [isOpen, success, patientMode, selectedPatientId, newPatientName, newPatientDoc, newPatientPhone, hasDifferentWhatsApp, newPatientWhatsApp, selectedDoctorId, selectedProcedureCode, date, time, notes, discount, customPrice, paidAmount, paymentMethod]);
+
+  // Double sync pricing handlers
+  const handleCustomPriceChange = (val: number) => {
+    setCustomPrice(val);
+    if (price > 0) {
+      if (val === price) {
+        setDiscount(0);
+      } else {
+        const pct = Math.round((1 - val / price) * 100);
+        setDiscount(pct < 0 ? 0 : pct > 100 ? 100 : pct);
+      }
+    }
+  };
+
+  const handleDiscountChange = (val: number) => {
+    setDiscount(val);
+    if (price > 0) {
+      const calculated = Math.round(price * (1 - val / 100));
+      setCustomPrice(calculated);
+    }
+  };
 
   // Handle auto calculations and alerts based on chosen Procedure
   useEffect(() => {
@@ -203,6 +245,8 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
     if (procedure) {
       setDuration(procedure.duration);
       setPrice(procedure.price);
+      setCustomPrice(procedure.price);
+      setDiscount(0);
       
       // Smart Procedural Alert
       if (procedure.alert) {
@@ -247,14 +291,18 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
           return;
         }
         
+        const finalWhatsApp = hasDifferentWhatsApp && newPatientWhatsApp 
+          ? newPatientWhatsApp.replace(/[^0-9]/g, '').slice(0, 10)
+          : newPatientPhone.replace(/[^0-9]/g, '').slice(0, 10);
+
         const newPat = await addPatient({
           name: newPatientName,
           document: newPatientDoc,
-          phone: newPatientPhone,
-          whatsapp: newPatientPhone.replace(/[^0-9]/g, ''),
+          phone: newPatientPhone.replace(/[^0-9]/g, '').slice(0, 10),
+          whatsapp: finalWhatsApp,
           address: '',
           birthDate: '1990-01-01',
-          gender: 'Otro',
+          gender: 'Femenino', // default to Femenino
           email: '',
           eps: 'Particular',
           allergies: 'Ninguna',
@@ -277,7 +325,9 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
         duration,
         status: 'confirmada',
         discount,
-        notes
+        notes,
+        paidAmount,
+        paymentMethod
       });
 
       localStorage.removeItem('xessia_draft_quick_appt');
@@ -297,7 +347,7 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
       <div className="modal-content fade-in" style={{ maxWidth: '550px' }}>
         <div className="modal-header">
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            Cita Rápida (15 Segundos)
+            Cita Rápida
           </h2>
           <button className="close-btn" onClick={onClose} disabled={success}>
             <X size={18} />
@@ -380,15 +430,37 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
                       />
                     </div>
                   </div>
-                  <div className="form-group" style={{ marginBottom: 0 }}>
-                    <input 
-                      type="text" 
-                      className="form-input" 
-                      placeholder="Teléfono Celular / WhatsApp" 
-                      required 
-                      value={newPatientPhone}
-                      onChange={(e) => setNewPatientPhone(e.target.value)}
-                    />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="Teléfono Celular" 
+                        required 
+                        value={newPatientPhone}
+                        onChange={(e) => setNewPatientPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
+                        style={{ flex: 1 }}
+                      />
+                      <button 
+                        type="button" 
+                        className="btn btn-secondary" 
+                        onClick={() => setHasDifferentWhatsApp(!hasDifferentWhatsApp)}
+                        style={{ fontSize: '11px', padding: '0 10px', height: '36px', whiteSpace: 'nowrap' }}
+                      >
+                        {hasDifferentWhatsApp ? '- WhatsApp único' : '+ WhatsApp diferente'}
+                      </button>
+                    </div>
+                    
+                    {hasDifferentWhatsApp && (
+                      <input 
+                        type="text" 
+                        className="form-input animate-fade-in" 
+                        placeholder="WhatsApp (Diferente)" 
+                        required 
+                        value={newPatientWhatsApp}
+                        onChange={(e) => setNewPatientWhatsApp(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
+                      />
+                    )}
                   </div>
                 </div>
               )}
@@ -428,24 +500,68 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
                 </select>
               </div>
 
-              {/* Discount Selection */}
-              <div className="form-group">
-                <label className="form-label">Porcentaje de Descuento</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {/* Double pricing/discount section */}
+              <div className="grid-2">
+                <div className="form-group">
+                  <label className="form-label">Precio Final del Servicio ($)</label>
                   <input 
                     type="number" 
                     className="form-input" 
                     min={0}
-                    max={100}
-                    value={discount || ''}
-                    onChange={(e) => {
-                      const val = e.target.value === '' ? 0 : Number(e.target.value);
-                      setDiscount(val < 0 ? 0 : val > 100 ? 100 : val);
-                    }}
-                    placeholder="0"
-                    style={{ flex: 1 }}
+                    value={customPrice || ''}
+                    onChange={(e) => handleCustomPriceChange(Number(e.target.value))}
+                    placeholder="Ej: 50000"
                   />
-                  <span style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--text-muted)' }}>%</span>
+                </div>
+                <div className="form-group">
+                  <label className="form-label">Descuento (%)</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      min={0}
+                      max={100}
+                      value={discount || ''}
+                      onChange={(e) => {
+                        const val = e.target.value === '' ? 0 : Number(e.target.value);
+                        handleDiscountChange(val < 0 ? 0 : val > 100 ? 100 : val);
+                      }}
+                      placeholder="0"
+                      style={{ flex: 1 }}
+                    />
+                    <span style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--text-muted)' }}>%</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Abono Inicial & Método de Pago */}
+              <div className="grid-2" style={{ backgroundColor: 'rgba(59, 130, 246, 0.05)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(59, 130, 246, 0.15)' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ color: 'var(--primary)' }}>Abono Inicial ($)</label>
+                  <input 
+                    type="number" 
+                    className="form-input" 
+                    min={0}
+                    max={customPrice}
+                    value={paidAmount || ''}
+                    onChange={(e) => setPaidAmount(Math.min(customPrice, Number(e.target.value)))}
+                    placeholder="0"
+                  />
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label">Método de Pago</label>
+                  <select 
+                    className="form-select"
+                    value={paymentMethod}
+                    onChange={(e: any) => setPaymentMethod(e.target.value)}
+                  >
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Tarjeta">Tarjeta de Crédito/Débito</option>
+                    <option value="Transferencia">Transferencia</option>
+                    <option value="Nequi">Nequi</option>
+                    <option value="Daviplata">Daviplata</option>
+                    <option value="Bancolombia">Bancolombia</option>
+                  </select>
                 </div>
               </div>
 
@@ -481,11 +597,17 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
                     </div>
                     <div>
                       <strong style={{ color: 'var(--secondary)' }}>
-                        ${Math.round(price * (1 - discount / 100)).toLocaleString('es-CO')} COP
+                        ${customPrice.toLocaleString('es-CO')} COP
                       </strong>
                     </div>
                   </div>
                 )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-light)', paddingTop: '6px', marginTop: '4px', fontWeight: 600 }}>
+                  <span style={{ color: 'var(--text-main)' }}>Saldo Restante (Deuda):</span>
+                  <span style={{ color: (customPrice - paidAmount) > 0 ? 'var(--state-cancelada)' : 'var(--state-confirmada)' }}>
+                    ${(customPrice - paidAmount).toLocaleString('es-CO')} COP
+                  </span>
+                </div>
               </div>
 
               {/* Dynamic Intelligent Alerts */}

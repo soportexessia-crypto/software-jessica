@@ -1,6 +1,18 @@
 import React from 'react';
 import { useApp } from '../context/AppContext';
-import { Database, ShieldCheck, HardDrive, RefreshCw, Wifi, X } from 'lucide-react';
+import { Database, ShieldCheck, HardDrive, RefreshCw, Wifi, X, Edit3, Download, FileSpreadsheet } from 'lucide-react';
+
+function getAge(birthDateString: string): number {
+  if (!birthDateString) return 0;
+  const today = new Date();
+  const birthDate = new Date(birthDateString);
+  let age = today.getFullYear() - birthDate.getFullYear();
+  const m = today.getMonth() - birthDate.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+}
 
 interface DraftItem {
   key: string;
@@ -9,7 +21,7 @@ interface DraftItem {
 }
 
 export const Configuracion: React.FC = () => {
-  const { patients, doctors, appointments, financials, showToast } = useApp();
+  const { patients, doctors, appointments, financials, procedures, showToast } = useApp();
 
   const [onlineStatus, setOnlineStatus] = React.useState(navigator.onLine);
   const [draftCount, setDraftCount] = React.useState(0);
@@ -340,7 +352,7 @@ export const Configuracion: React.FC = () => {
                               style={{ padding: '4px 10px', fontSize: '11px', flex: 1, justifyContent: 'center', minHeight: 'auto', height: '28px' }}
                               onClick={() => handleOpenEditModal(draft)}
                             >
-                              ✏️ Editar
+                              <Edit3 size={12} /> Editar
                             </button>
                             <button 
                               className="btn" 
@@ -392,53 +404,186 @@ export const Configuracion: React.FC = () => {
 
       </div>
 
-      {/* RIGHT COLUMN: Settings Audit and Theme */}
-      <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-        <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <ShieldCheck size={22} style={{ color: 'var(--state-confirmada)' }} />
-          Bitácora de Auditoría
-        </h2>
-        <p className="text-muted" style={{ fontSize: '13px', marginTop: '-10px' }}>
-          Registro histórico de acciones administrativas y de seguridad efectuadas en XESSIA hoy.
-        </p>
+      {/* RIGHT COLUMN: Settings Audit, Theme, and Excel Exporter */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
 
-        <div 
-          style={{ 
-            backgroundColor: 'var(--bg-app)', 
-            padding: '16px', 
-            borderRadius: 'var(--radius-lg)', 
-            border: '1px solid var(--border-light)', 
-            display: 'flex', 
-            flexDirection: 'column', 
-            gap: '12px',
-            maxHeight: '300px',
-            overflowY: 'auto'
-          }}
-        >
-          <div style={{ fontSize: '11.5px', borderBottom: '1px solid var(--border-light)', paddingBottom: '6px' }}>
-            <span style={{ color: 'var(--text-light)' }}>17:58:17</span> • Sesión administrativa iniciada por Jessica Montenegro.
-          </div>
-          <div style={{ fontSize: '11.5px', borderBottom: '1px solid var(--border-light)', paddingBottom: '6px' }}>
-            <span style={{ color: 'var(--text-light)' }}>18:02:10</span> • Odontograma actualizado en paciente María Camila Restrepo (Caries en Diente 11).
-          </div>
-          <div style={{ fontSize: '11.5px', borderBottom: '1px solid var(--border-light)', paddingBottom: '6px' }}>
-            <span style={{ color: 'var(--text-light)' }}>18:04:45</span> • Caja: Abono de $200,000 COP recibido de Juan Sebastián Montoya.
-          </div>
-          <div style={{ fontSize: '11.5px', borderBottom: '1px solid var(--border-light)', paddingBottom: '6px' }}>
-            <span style={{ color: 'var(--text-light)' }}>18:05:01</span> • Cita rápida agendada para Samuel Alejandro Giraldo.
-          </div>
-          <div style={{ fontSize: '11.5px' }}>
-            <span style={{ color: 'var(--text-light)' }}>Justo ahora</span> • Vista de configuración abierta por Jessica Montenegro.
+        {/* Exportación de Datos en Excel / CSV */}
+        <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <FileSpreadsheet size={22} style={{ color: 'var(--primary)' }} />
+            Exportación Total de Datos (Excel)
+          </h2>
+          <p className="text-muted" style={{ fontSize: '13px', marginTop: '-10px' }}>
+            Descargue toda la información registrada en la clínica en archivos estructurados CSV listos para Microsoft Excel.
+          </p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
+            <button 
+              className="btn btn-secondary" 
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-start', width: '100%' }}
+              onClick={() => {
+                try {
+                  const headers = ['Nombre Completo', 'Documento/CC', 'Celular', 'WhatsApp', 'Fecha Nacimiento', 'Edad', 'Sexo', 'EPS', 'Alergias', 'Observaciones', 'Deuda Pendiente (COP)'];
+                  const rows = patients.map(p => {
+                    const age = getAge(p.birthDate);
+                    return [
+                      `"${p.name.replace(/"/g, '""')}"`,
+                      p.document,
+                      p.phone,
+                      p.whatsapp || '',
+                      p.birthDate,
+                      `${age} años`,
+                      p.gender,
+                      `"${p.eps.replace(/"/g, '""')}"`,
+                      `"${p.allergies.replace(/"/g, '""')}"`,
+                      `"${(p.observations || '').replace(/"/g, '""').replace(/\n/g, ' ')}"`,
+                      p.debt
+                    ];
+                  });
+                  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.setAttribute('download', `Xessia_Pacientes_${new Date().toISOString().substring(0, 10)}.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  showToast('Pacientes exportados correctamente.', 'success');
+                } catch (e: any) {
+                  showToast('Error al exportar pacientes', 'error');
+                }
+              }}
+            >
+              <Download size={14} /> Exportar Planilla de Pacientes
+            </button>
+
+            <button 
+              className="btn btn-secondary" 
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-start', width: '100%' }}
+              onClick={() => {
+                try {
+                  const headers = ['ID Cita', 'Paciente', 'Especialista', 'Procedimiento', 'Fecha', 'Hora', 'Duracion (min)', 'Precio Base', 'Descuento (%)', 'Precio Final', 'Abonado', 'Estado'];
+                  const rows = appointments.map(appt => {
+                    const pat = patients.find(p => p.id === appt.patientId);
+                    const doc = doctors.find(d => d.id === appt.doctorId);
+                    const proc = procedures.find(p => p.code === appt.procedureCode);
+                    const price = proc ? proc.price : 0;
+                    return [
+                      appt.id,
+                      `"${(pat ? pat.name : 'N/A').replace(/"/g, '""')}"`,
+                      `"${(doc ? doc.name : 'N/A').replace(/"/g, '""')}"`,
+                      appt.procedureCode,
+                      appt.date,
+                      appt.time,
+                      appt.duration,
+                      price,
+                      appt.discount || 0,
+                      Math.round(price * (1 - (appt.discount || 0) / 100)),
+                      appt.paidAmount || 0,
+                      appt.status
+                    ];
+                  });
+                  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.setAttribute('download', `Xessia_Historial_Citas_${new Date().toISOString().substring(0, 10)}.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  showToast('Historial de citas exportado correctamente.', 'success');
+                } catch (e: any) {
+                  showToast('Error al exportar citas', 'error');
+                }
+              }}
+            >
+              <Download size={14} /> Exportar Historial de Citas
+            </button>
+
+            <button 
+              className="btn btn-secondary" 
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-start', width: '100%' }}
+              onClick={() => {
+                try {
+                  const headers = ['ID Transaccion', 'Fecha', 'Concepto', 'Metodo', 'Tipo', 'Monto (COP)'];
+                  const rows = financials.map(f => [
+                    f.id,
+                    f.date,
+                    `"${(f.notes || '').replace(/"/g, '""')}"`,
+                    f.method,
+                    f.type,
+                    f.amount
+                  ]);
+                  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = url;
+                  link.setAttribute('download', `Xessia_Planilla_Caja_${new Date().toISOString().substring(0, 10)}.csv`);
+                  document.body.appendChild(link);
+                  link.click();
+                  document.body.removeChild(link);
+                  showToast('Flujo de caja exportado correctamente.', 'success');
+                } catch (e: any) {
+                  showToast('Error al exportar caja', 'error');
+                }
+              }}
+            >
+              <Download size={14} /> Exportar Planilla de Caja (Flujo)
+            </button>
           </div>
         </div>
 
-        {/* Theme Settings Panel */}
-        <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
-          <h3>Apariencia y Parámetros Clínicos</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12.5px', marginTop: '10px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Canal de WhatsApp Remoto:</span>
-              <strong style={{ color: 'var(--state-confirmada)' }}>En Línea</strong>
+        {/* Respaldos y Seguridad */}
+        <div className="premium-card" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ShieldCheck size={22} style={{ color: 'var(--state-confirmada)' }} />
+            Bitácora de Auditoría
+          </h2>
+          <p className="text-muted" style={{ fontSize: '13px', marginTop: '-10px' }}>
+            Registro histórico de acciones administrativas y de seguridad efectuadas en XESSIA hoy.
+          </p>
+
+          <div 
+            style={{ 
+              backgroundColor: 'var(--bg-app)', 
+              padding: '16px', 
+              borderRadius: 'var(--radius-lg)', 
+              border: '1px solid var(--border-light)', 
+              display: 'flex', 
+              flexDirection: 'column', 
+              gap: '12px',
+              maxHeight: '300px',
+              overflowY: 'auto'
+            }}
+          >
+            <div style={{ fontSize: '11.5px', borderBottom: '1px solid var(--border-light)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-light)' }}>17:58:17</span> • Sesión administrativa iniciada por Jessica Montenegro.
+            </div>
+            <div style={{ fontSize: '11.5px', borderBottom: '1px solid var(--border-light)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-light)' }}>18:02:10</span> • Odontograma actualizado en paciente María Camila Restrepo (Caries en Diente 11).
+            </div>
+            <div style={{ fontSize: '11.5px', borderBottom: '1px solid var(--border-light)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-light)' }}>18:04:45</span> • Caja: Abono de $200,000 COP recibido de Juan Sebastián Montoya.
+            </div>
+            <div style={{ fontSize: '11.5px', borderBottom: '1px solid var(--border-light)', paddingBottom: '6px' }}>
+              <span style={{ color: 'var(--text-light)' }}>18:05:01</span> • Cita rápida agendada para Samuel Alejandro Giraldo.
+            </div>
+            <div style={{ fontSize: '11.5px' }}>
+              <span style={{ color: 'var(--text-light)' }}>Justo ahora</span> • Vista de configuración abierta por Jessica Montenegro.
+            </div>
+          </div>
+
+          {/* Theme Settings Panel */}
+          <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
+            <h3>Apariencia y Parámetros Clínicos</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '12.5px', marginTop: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Canal de WhatsApp Remoto:</span>
+                <strong style={{ color: 'var(--state-confirmada)' }}>En Línea</strong>
+              </div>
             </div>
           </div>
         </div>

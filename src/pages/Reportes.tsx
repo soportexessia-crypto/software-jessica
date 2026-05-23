@@ -46,9 +46,11 @@ export const Reportes: React.FC = () => {
   const hasFinancialData = monthlyIncomes.some(m => m.total > 0);
   const maxIncome = Math.max(...monthlyIncomes.map(m => m.total), 1);
 
+  const widthPerMonth = monthlyIncomes.length > 1 ? 400 / (monthlyIncomes.length - 1) : 400;
+
   // SVG Coordinates for Line Chart
   const linePoints = monthlyIncomes.map((m, idx) => ({
-    x: 60 + idx * 100,
+    x: 50 + idx * widthPerMonth,
     y: 180 - (m.total / maxIncome) * 140
   }));
   
@@ -58,6 +60,32 @@ export const Reportes: React.FC = () => {
   const fillD = linePoints.length > 0
     ? `${pathD} L ${linePoints[linePoints.length - 1].x},180 L ${linePoints[0].x},180 Z`
     : '';
+
+  const exportTopProceduresCSV = () => {
+    try {
+      const headers = ['Codigo', 'Nombre Tratamiento', 'Categoria', 'Cobrado Acumulado (COP)', 'Frecuencia Mensual'];
+      const rows = topProcedures.map(tp => [
+        tp.code,
+        `"${tp.name.replace(/"/g, '""')}"`,
+        tp.category,
+        tp.earnings,
+        `${tp.count} ejecuciones`
+      ]);
+      const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', `Tratamientos_Mas_Realizados_${new Date().toISOString().substring(0, 10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      showToast('Archivo CSV exportado correctamente.', 'success');
+    } catch (err: any) {
+      console.error(err);
+      showToast('Error al exportar CSV', 'error');
+    }
+  };
 
   const formatYLabel = (val: number) => {
     if (val >= 1000000) {
@@ -196,7 +224,7 @@ export const Reportes: React.FC = () => {
 
                 {/* Text labels */}
                 {monthlyIncomes.map((m, idx) => (
-                  <text key={idx} x={60 + idx * 100} y="200" fontSize="10" fill="var(--text-light)" textAnchor="middle">{m.name}</text>
+                  <text key={idx} x={50 + idx * widthPerMonth} y="200" fontSize="10" fill="var(--text-light)" textAnchor="middle">{m.name}</text>
                 ))}
                 
                 <text x="30" y="145" fontSize="9" fill="var(--text-light)" textAnchor="end">{formatYLabel(maxIncome * 0.28)}</text>
@@ -256,7 +284,7 @@ export const Reportes: React.FC = () => {
           <button 
             className="btn btn-secondary" 
             style={{ padding: '6px 12px', fontSize: '12px', gap: '6px' }} 
-            onClick={() => showToast('Exportando informe consolidado Excel...', 'info')}
+            onClick={exportTopProceduresCSV}
             disabled={topProcedures.length === 0}
           >
             <FileSpreadsheet size={14} /> Exportar Consolidado

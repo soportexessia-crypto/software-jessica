@@ -38,6 +38,8 @@ export const Agenda: React.FC = () => {
   const [editStatus, setEditStatus] = useState<Appointment['status']>('pendiente');
   const [editNotes, setEditNotes] = useState('');
   const [editDiscount, setEditDiscount] = useState(0);
+  const [editBasePrice, setEditBasePrice] = useState(0);
+  const [editCustomPrice, setEditCustomPrice] = useState(0);
 
   // Handle setting modal edit fields
   useEffect(() => {
@@ -48,8 +50,34 @@ export const Agenda: React.FC = () => {
       setEditStatus(selectedAppt.status);
       setEditNotes(selectedAppt.notes || '');
       setEditDiscount(selectedAppt.discount || 0);
+
+      const proc = procedures.find(p => p.code === selectedAppt.procedureCode);
+      const baseVal = proc ? proc.price : 0;
+      setEditBasePrice(baseVal);
+      const finalVal = Math.round(baseVal * (1 - (selectedAppt.discount || 0) / 100));
+      setEditCustomPrice(finalVal);
     }
-  }, [selectedAppt]);
+  }, [selectedAppt, procedures]);
+
+  const handleEditCustomPriceChange = (val: number) => {
+    setEditCustomPrice(val);
+    if (editBasePrice > 0) {
+      if (val === editBasePrice) {
+        setEditDiscount(0);
+      } else {
+        const pct = Math.round((1 - val / editBasePrice) * 100);
+        setEditDiscount(pct < 0 ? 0 : pct > 100 ? 100 : pct);
+      }
+    }
+  };
+
+  const handleEditDiscountChange = (val: number) => {
+    setEditDiscount(val);
+    if (editBasePrice > 0) {
+      const calculated = Math.round(editBasePrice * (1 - val / 100));
+      setEditCustomPrice(calculated);
+    }
+  };
 
   // Calendar calculations (Month view)
   const getDaysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
@@ -122,6 +150,27 @@ export const Agenda: React.FC = () => {
   for (let d = 1; d <= remaining; d++) {
     const dateStr = formatDateString(month === 11 ? year + 1 : year, month === 11 ? 0 : month + 1, d);
     calendarCells.push({ day: d, outside: true, dateString: dateStr });
+  }
+
+  let activeCells = calendarCells;
+  if (viewMode === 'semana') {
+    const monday = new Date(currentDate);
+    const currentDayOfWeek = monday.getDay();
+    const distanceToMonday = currentDayOfWeek === 0 ? 6 : currentDayOfWeek - 1;
+    monday.setDate(monday.getDate() - distanceToMonday);
+
+    const weekCells = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(d.getDate() + i);
+      const dateStr = formatDateString(d.getFullYear(), d.getMonth(), d.getDate());
+      weekCells.push({ day: d.getDate(), outside: false, dateString: dateStr });
+    }
+    activeCells = weekCells;
+  } else if (viewMode === 'dia') {
+    activeCells = [
+      { day: currentDate.getDate(), outside: false, dateString: formatDateString(year, month, currentDate.getDate()) }
+    ];
   }
 
   // Handle saving edits
@@ -199,18 +248,12 @@ export const Agenda: React.FC = () => {
           <button 
             className={`calendar-view-btn ${viewMode === 'semana' ? 'active' : ''}`}
             onClick={() => setViewMode('semana')}
-            disabled
-            style={{ opacity: 0.5, cursor: 'not-allowed' }}
-            title="Vista semanal disponible en fase 2"
           >
             Semana
           </button>
           <button 
             className={`calendar-view-btn ${viewMode === 'dia' ? 'active' : ''}`}
             onClick={() => setViewMode('dia')}
-            disabled
-            style={{ opacity: 0.5, cursor: 'not-allowed' }}
-            title="Vista diaria disponible en fase 2"
           >
             Día
           </button>
@@ -221,15 +264,21 @@ export const Agenda: React.FC = () => {
       <div className="calendar-container">
         <div className="calendar-grid">
           {/* Day Names Labels */}
-          {['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(label => (
-            <div key={label} className="calendar-day-label">
-              {label}
+          {viewMode === 'mes' || viewMode === 'semana' ? (
+            ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'].map(label => (
+              <div key={label} className="calendar-day-label">
+                {label}
+              </div>
+            ))
+          ) : (
+            <div className="calendar-day-label" style={{ gridColumn: 'span 7', textAlign: 'center' }}>
+              {['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'][currentDate.getDay()]}
             </div>
-          ))}
+          )}
 
           {/* Grid Cells */}
-          <div className="calendar-grid-cells">
-            {calendarCells.map((cell, idx) => {
+          <div className="calendar-grid-cells" style={{ gridTemplateColumns: viewMode === 'dia' ? '1fr' : 'repeat(7, 1fr)' }}>
+            {activeCells.map((cell, idx) => {
               // Get appointments scheduled for this cell day
               const cellAppts = appointments.filter(a => {
                 if (a.date !== cell.dateString) return false;
@@ -382,20 +431,38 @@ export const Agenda: React.FC = () => {
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Porcentaje de Descuento (%)</label>
-                  <input 
-                    type="number" 
-                    className="form-input"
-                    min={0}
-                    max={100}
-                    value={editDiscount || ''}
-                    onChange={(e) => {
-                      const val = e.target.value === '' ? 0 : Number(e.target.value);
-                      setEditDiscount(val < 0 ? 0 : val > 100 ? 100 : val);
-                    }}
-                    placeholder="0"
-                  />
+                {/* Double pricing/discount section */}
+                <div className="grid-2">
+                  <div className="form-group">
+                    <label className="form-label">Precio Final del Servicio ($)</label>
+                    <input 
+                      type="number" 
+                      className="form-input" 
+                      min={0}
+                      value={editCustomPrice || ''}
+                      onChange={(e) => handleEditCustomPriceChange(Number(e.target.value))}
+                      placeholder="Ej: 50000"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label className="form-label">Descuento (%)</label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input 
+                        type="number" 
+                        className="form-input" 
+                        min={0}
+                        max={100}
+                        value={editDiscount || ''}
+                        onChange={(e) => {
+                          const val = e.target.value === '' ? 0 : Number(e.target.value);
+                          handleEditDiscountChange(val < 0 ? 0 : val > 100 ? 100 : val);
+                        }}
+                        placeholder="0"
+                        style={{ flex: 1 }}
+                      />
+                      <span style={{ fontSize: '14px', fontWeight: 'bold', color: 'var(--text-muted)' }}>%</span>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="form-group">

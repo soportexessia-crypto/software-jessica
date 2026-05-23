@@ -4,7 +4,7 @@ import type { Procedure } from '../context/AppContext';
 import { Search, Star, Clock, Stethoscope, AlertTriangle, Plus, X, Edit3 } from 'lucide-react';
 
 export const Procedimientos: React.FC = () => {
-  const { procedures, doctors, addProcedure, updateProcedure, deleteProcedure } = useApp();
+  const { procedures, doctors, addProcedure, updateProcedure, deleteProcedure, showConfirm } = useApp();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('TODOS');
   
@@ -23,8 +23,13 @@ export const Procedimientos: React.FC = () => {
   const [formAlert, setFormAlert] = useState('');
   const [formFavorite, setFormFavorite] = useState(false);
 
-  const categories = [
-    'TODOS',
+  // Category states
+  const [isNewCategory, setIsNewCategory] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  // Extract unique categories dynamically from db
+  const dbCategories = Array.from(new Set(procedures.map(p => p.category.toUpperCase())));
+  const defaultCats = [
     'CONSULTAS',
     'LIMPIEZA Y PREVENCIÓN',
     'RADIOLOGÍA',
@@ -33,6 +38,8 @@ export const Procedimientos: React.FC = () => {
     'RESTAURACIÓN Y ESTÉTICA',
     'PRÓTESIS Y REHABILITACIÓN'
   ];
+  const uniqueCats = Array.from(new Set([...defaultCats, ...dbCategories])).sort();
+  const categories = ['TODOS', ...uniqueCats];
 
   const handleOpenEdit = (proc: Procedure) => {
     setEditingProc(proc);
@@ -45,6 +52,8 @@ export const Procedimientos: React.FC = () => {
     setFormSpecialist(proc.specialist);
     setFormAlert(proc.alert || '');
     setFormFavorite(!!proc.favorite);
+    setIsNewCategory(false);
+    setNewCategoryName('');
     setIsModalOpen(true);
   };
 
@@ -59,6 +68,8 @@ export const Procedimientos: React.FC = () => {
     setFormSpecialist('Todos');
     setFormAlert('');
     setFormFavorite(false);
+    setIsNewCategory(false);
+    setNewCategoryName('');
     setIsModalOpen(true);
   };
 
@@ -98,18 +109,20 @@ export const Procedimientos: React.FC = () => {
       console.error(err);
     }
   };
-
   const handleDeleteProc = async (id: string) => {
-    if (window.confirm('¿Está seguro de eliminar este tratamiento? Esta acción no se puede deshacer.')) {
-      try {
-        await deleteProcedure(id);
-        setIsModalOpen(false);
-      } catch (err) {
-        console.error(err);
+    showConfirm({
+      title: 'Eliminar Tratamiento',
+      message: '¿Está seguro de eliminar este tratamiento? Esta acción no se puede deshacer.',
+      onConfirm: async () => {
+        try {
+          await deleteProcedure(id);
+          setIsModalOpen(false);
+        } catch (err) {
+          console.error(err);
+        }
       }
-    }
+    });
   };
-
   const filteredProcedures = procedures.filter(proc => {
     const matchesSearch = 
       proc.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -308,13 +321,38 @@ export const Procedimientos: React.FC = () => {
                     <label className="form-label">Categoría *</label>
                     <select 
                       className="form-select"
-                      value={formCategory}
-                      onChange={(e) => setFormCategory(e.target.value as any)}
+                      value={isNewCategory ? 'NEW_CAT' : formCategory}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (val === 'NEW_CAT') {
+                          setIsNewCategory(true);
+                          setFormCategory('');
+                        } else {
+                          setIsNewCategory(false);
+                          setFormCategory(val);
+                        }
+                      }}
                     >
-                      {categories.filter(c => c !== 'TODOS').map(c => (
+                      {uniqueCats.map(c => (
                         <option key={c} value={c}>{c}</option>
                       ))}
+                      <option value="NEW_CAT" style={{ color: 'var(--primary)', fontWeight: 'bold' }}>+ Crear Nueva Categoría</option>
                     </select>
+                    {isNewCategory && (
+                      <input 
+                        type="text" 
+                        className="form-input animate-fade-in" 
+                        style={{ marginTop: '8px' }}
+                        placeholder="Escriba la nueva categoría" 
+                        required 
+                        value={newCategoryName}
+                        onChange={(e) => {
+                          const val = e.target.value.toUpperCase();
+                          setNewCategoryName(val);
+                          setFormCategory(val);
+                        }}
+                      />
+                    )}
                   </div>
                 </div>
 

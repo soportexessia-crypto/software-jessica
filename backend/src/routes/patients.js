@@ -65,21 +65,31 @@ router.patch('/:id', auth, async (req, res) => {
 // PATCH /api/patients/:id/odontogram — actualizar un diente del odontograma
 router.patch('/:id/odontogram', auth, async (req, res) => {
   try {
-    const { toothNumber, section, state } = req.body;
-    if (!toothNumber || !section || !state) {
-      return res.status(400).json({ error: 'toothNumber, section y state son obligatorios.' });
+    const { toothNumber, section, state, odontogram } = req.body;
+    let patient;
+    if (odontogram) {
+      patient = await Patient.findByIdAndUpdate(
+        req.params.id,
+        { $set: { odontogram } },
+        { new: true }
+      );
+    } else {
+      if (!toothNumber || !section || !state) {
+        return res.status(400).json({ error: 'toothNumber, section y state son obligatorios.' });
+      }
+      patient = await Patient.findByIdAndUpdate(
+        req.params.id,
+        { $set: { [`odontogram.${toothNumber}.${section}`]: state } },
+        { new: true }
+      );
     }
-    const patient = await Patient.findByIdAndUpdate(
-      req.params.id,
-      { $set: { [`odontogram.${toothNumber}.${section}`]: state } },
-      { new: true }
-    );
     if (!patient) return res.status(404).json({ error: 'Paciente no encontrado.' });
     res.json(patient);
   } catch (err) {
     res.status(400).json({ error: err.message });
   }
 });
+
 
 // DELETE /api/patients/:id — soft delete
 router.delete('/:id', auth, async (req, res) => {

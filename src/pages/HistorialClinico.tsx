@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
-import { Search, Activity, Pill, Clipboard, HeartCrack } from 'lucide-react';
+import { Search, Activity, Pill, Clipboard, HeartCrack, Download } from 'lucide-react';
 
 export const HistorialClinico: React.FC = () => {
   const { patients, updatePatient, showToast } = useApp();
@@ -88,14 +88,95 @@ export const HistorialClinico: React.FC = () => {
         <div className="premium-card" style={{ gridColumn: 'span 8', display: 'flex', flexDirection: 'column', gap: '20px', minHeight: '550px' }}>
           
           {/* Dossier Header */}
-          <div style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '16px' }}>
-            <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <Activity size={22} style={{ color: 'var(--primary)' }} />
-              Expediente Clínico: {selectedPatient.name}
-            </h2>
-            <div style={{ fontSize: '12px', color: 'var(--text-light)', marginTop: '4px' }}>
-              Cédula de Ciudadanía: {selectedPatient.document} • EPS: {selectedPatient.eps}
+          <div style={{ borderBottom: '1px solid var(--border-light)', paddingBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Activity size={22} style={{ color: 'var(--primary)' }} />
+                Expediente Clínico: {selectedPatient.name}
+              </h2>
+              <div style={{ fontSize: '12px', color: 'var(--text-light)', marginTop: '4px' }}>
+                Cédula de Ciudadanía: {selectedPatient.document} • EPS: {selectedPatient.eps}
+              </div>
             </div>
+            <button 
+              className="btn btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '8px 16px', height: '36px' }}
+              onClick={() => {
+                const printWindow = window.open('', '_blank');
+                if (printWindow) {
+                  // Beautifully styled clinical dossier HTML
+                  const notesListHtml = selectedPatient.observations
+                    .split('\n\n')
+                    .map(item => {
+                      const isRecipe = item.startsWith('[Receta');
+                      const dateMatch = item.match(/-\s*(\d{1,2}\/\d{1,2}\/\d{4})/);
+                      const date = dateMatch?.[1] || 'Reciente';
+                      const cleanText = item
+                        .replace(/\[Nota de Evolución -.*?\]: /, '')
+                        .replace(/\[Receta Médica -.*?\]: /, '');
+                      return `
+                        <div class="note-box" style="border-left: 4px solid ${isRecipe ? '#e11d48' : '#3b82f6'};">
+                           <div class="note-type">${isRecipe ? 'Fórmula Médica' : 'Evolución Clínica'}</div>
+                           <div class="note-text">${cleanText}</div>
+                           <div class="note-date">Fecha: ${date}</div>
+                        </div>
+                      `;
+                    }).join('');
+
+                  printWindow.document.write(`
+                    <html>
+                      <head>
+                        <title>Historia Clinica - ${selectedPatient.name}</title>
+                        <style>
+                          body { font-family: Arial, sans-serif; color: #333; padding: 40px; line-height: 1.6; }
+                          .header-box { border-bottom: 2px solid #3b82f6; padding-bottom: 15px; margin-bottom: 30px; }
+                          .title { font-size: 26px; font-weight: bold; color: #3b82f6; }
+                          .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 30px; font-size: 14px; background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }
+                          .note-box { background: #f8fafc; padding: 15px; margin-bottom: 15px; border-radius: 6px; border: 1px solid #e2e8f0; }
+                          .note-type { font-weight: bold; font-size: 13px; color: #1e293b; text-transform: uppercase; margin-bottom: 5px; }
+                          .note-text { font-size: 14px; white-space: pre-line; }
+                          .note-date { font-size: 11px; color: #64748b; text-align: right; margin-top: 8px; }
+                          .allergy-alert { background: #fee2e2; color: #991b1b; padding: 12px; border-radius: 6px; font-weight: bold; border: 1px solid #fecaca; margin-bottom: 20px; }
+                          .btn-print { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 15px; }
+                          @media print { .btn-print { display: none; } }
+                        </style>
+                      </head>
+                      <body onload="window.print()">
+                        <div class="header-box">
+                          <span class="title">HISTORIA CLÍNICA ODONTOLÓGICA</span>
+                          <div style="font-size: 12px; color: #64748b; margin-top: 5px;">CLÍNICA ODONTOLÓGICA XESSIA</div>
+                        </div>
+                        
+                        ${selectedPatient.allergies && selectedPatient.allergies !== 'Ninguna' && selectedPatient.allergies !== 'Ninguna conocida' && selectedPatient.allergies.trim() !== '' ? `
+                          <div class="allergy-alert">
+                            ⚠️ ALERTA MÉDICA: EL PACIENTE PRESENTA ALERGIAS: ${selectedPatient.allergies}
+                          </div>
+                        ` : ''}
+
+                        <div class="info-grid">
+                          <div><strong>Paciente:</strong> ${selectedPatient.name}</div>
+                          <div><strong>Documento:</strong> C.C. ${selectedPatient.document}</div>
+                          <div><strong>Teléfono:</strong> ${selectedPatient.phone}</div>
+                          <div><strong>EPS:</strong> ${selectedPatient.eps}</div>
+                          <div><strong>Sexo:</strong> ${selectedPatient.gender}</div>
+                          <div><strong>Fecha Nacimiento:</strong> ${selectedPatient.birthDate}</div>
+                        </div>
+
+                        <h3>Notas de Evolución y Recetas</h3>
+                        ${notesListHtml || '<div class="text-muted">No hay registros clínicos aún.</div>'}
+
+                        <div style="margin-top: 50px; text-align: center; font-size: 11px; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 15px;">
+                          Documento de confidencialidad médica restringida. Generado automáticamente por XESSIA Gestión.
+                        </div>
+                      </body>
+                    </html>
+                  `);
+                  printWindow.document.close();
+                }
+              }}
+            >
+              <Download size={14} /> Guardar PDF / Imprimir
+            </button>
           </div>
 
           {/* Persistent medical warning if there are allergies */}

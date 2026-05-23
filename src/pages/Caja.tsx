@@ -10,7 +10,8 @@ import {
   Plus, 
   X,
   Printer,
-  Download
+  Download,
+  Search
 } from 'lucide-react';
 
 export const Caja: React.FC = () => {
@@ -27,6 +28,19 @@ export const Caja: React.FC = () => {
   const [payAmount, setPayAmount] = useState<number>(0);
   const [payMethod, setPayMethod] = useState<FinancialRecord['method']>('Efectivo');
   const [payNotes, setPayNotes] = useState('');
+  const [payPhoto, setPayPhoto] = useState<string | null>(null);
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
+
+  const handlePayPhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPayPhoto(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Form states (Expense)
   const [expenseAmount, setExpenseAmount] = useState<number>(0);
@@ -87,6 +101,7 @@ export const Caja: React.FC = () => {
           setPayAmount(draft.payAmount || 0);
           setPayMethod(draft.payMethod || 'Efectivo');
           setPayNotes(draft.payNotes || '');
+          setPayPhoto(draft.payPhoto || null);
         } catch (e) {
           console.error('Error parsing draft income', e);
         }
@@ -102,11 +117,12 @@ export const Caja: React.FC = () => {
         selectedApptId,
         payAmount,
         payMethod,
-        payNotes
+        payNotes,
+        payPhoto
       };
       localStorage.setItem('xessia_draft_income', JSON.stringify(draft));
     }
-  }, [isPayModalOpen, selectedPatientId, selectedApptId, payAmount, payMethod, payNotes]);
+  }, [isPayModalOpen, selectedPatientId, selectedApptId, payAmount, payMethod, payNotes, payPhoto]);
 
   const handleRegisterPayment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -121,7 +137,8 @@ export const Caja: React.FC = () => {
       amount: payAmount,
       method: payMethod,
       type: 'Ingreso',
-      notes: payNotes || `Abono registrado en caja.`
+      notes: payNotes || `Abono registrado en caja.`,
+      receiptPhoto: payPhoto || undefined
     });
 
     localStorage.removeItem('xessia_draft_income');
@@ -130,6 +147,7 @@ export const Caja: React.FC = () => {
     setSelectedApptId('');
     setPayAmount(0);
     setPayNotes('');
+    setPayPhoto(null);
     showToast('Ingreso a caja registrado exitosamente.', 'success');
   };
 
@@ -258,7 +276,7 @@ export const Caja: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
             <h2>Historial de Transacciones de Caja</h2>
             <div style={{ display: 'flex', gap: '10px' }} className="cash-actions-container">
-              <button className="btn btn-primary" onClick={() => setIsPayModalOpen(true)}>
+              <button className="btn btn-primary" onClick={() => { setPayPhoto(null); setIsPayModalOpen(true); }}>
                 <Plus size={16} /> Registrar Entrada / Ingreso
               </button>
               <button 
@@ -275,30 +293,67 @@ export const Caja: React.FC = () => {
             </div>
           </div>
 
+          <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }}>
+            <input 
+              type="text" 
+              className="form-input" 
+              placeholder="Buscar por paciente, N° recibo (REC-xxxx), notas..." 
+              style={{ width: '100%', paddingLeft: '36px', height: '36px', borderRadius: '8px' }}
+              value={historySearchQuery}
+              onChange={(e) => setHistorySearchQuery(e.target.value)}
+            />
+            <Search size={14} style={{ position: 'absolute', left: '12px', top: '11px', color: 'var(--text-light)' }} />
+          </div>
+
           <div className="premium-table-container">
             <table className="premium-table">
               <thead>
                 <tr>
+                  <th>N° Recibo</th>
                   <th>Fecha/Hora</th>
                   <th>Detalle / Paciente</th>
                   <th>Método</th>
                   <th>Monto ($ COP)</th>
-                  <th>Soporte / Factura</th>
+                  <th>Acción</th>
                 </tr>
               </thead>
               <tbody>
-                {financials.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} style={{ textAlign: 'center', padding: '24px' }} className="text-muted">
-                      No hay transacciones registradas hoy.
-                    </td>
-                  </tr>
-                ) : (
-                  financials.map(rec => {
+                {(() => {
+                  const filtered = financials.filter(rec => {
+                    const pat = rec.patientId ? getPatientById(rec.patientId) : undefined;
+                    const query = historySearchQuery.toLowerCase().trim();
+                    if (!query) return true;
+
+                    const receiptNum = `REC-${rec.id.substring(0, 8).toUpperCase()}`;
+                    const matchesReceipt = receiptNum.toLowerCase().includes(query);
+                    const matchesId = rec.id.toLowerCase().includes(query);
+                    const matchesPatientName = pat ? pat.name.toLowerCase().includes(query) : false;
+                    const matchesMethod = rec.method.toLowerCase().includes(query);
+                    const matchesNotes = rec.notes ? rec.notes.toLowerCase().includes(query) : false;
+
+                    return matchesReceipt || matchesId || matchesPatientName || matchesMethod || matchesNotes;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <tr>
+                        <td colSpan={6} style={{ textAlign: 'center', padding: '24px' }} className="text-muted">
+                          No se encontraron transacciones.
+                        </td>
+                      </tr>
+                    );
+                  }
+
+                  return filtered.map(rec => {
                     const isIncome = rec.type === 'Ingreso';
                     const pat = rec.patientId ? getPatientById(rec.patientId) : undefined;
                     return (
                       <tr key={rec.id}>
+                        <td>
+                          <span style={{ fontFamily: 'monospace', fontWeight: 600, fontSize: '12px', color: 'var(--text-muted)' }}>
+                            REC-{rec.id.substring(0, 8).toUpperCase()}
+                          </span>
+                        </td>
                         <td>{rec.date}</td>
                         <td>
                           {isIncome ? (
@@ -340,8 +395,8 @@ export const Caja: React.FC = () => {
                         </td>
                       </tr>
                     );
-                  })
-                )}
+                  });
+                })()}
               </tbody>
             </table>
           </div>
@@ -463,10 +518,11 @@ export const Caja: React.FC = () => {
                         <option value="Nequi">Nequi</option>
                         <option value="Daviplata">Daviplata</option>
                         <option value="Transferencia">Transferencia</option>
+                        <option value="Bancolombia">Bancolombia</option>
                       </select>
                     </div>
 
-                    <div className="form-group" style={{ marginBottom: 0 }}>
+                    <div className="form-group" style={{ marginBottom: '10px' }}>
                       <label className="form-label">Notas o Detalle de Caja</label>
                       <input 
                         type="text" 
@@ -475,6 +531,83 @@ export const Caja: React.FC = () => {
                         value={payNotes}
                         onChange={(e) => setPayNotes(e.target.value)}
                       />
+                    </div>
+
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label">Comprobante de Pago / Soporte (Opcional)</label>
+                      
+                      {!payPhoto ? (
+                        <div style={{
+                          border: '2px dashed var(--border-light)',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '16px',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          backgroundColor: 'var(--bg-app)',
+                          transition: 'all 0.2s ease',
+                        }}
+                        onClick={() => document.getElementById('pay-photo-input')?.click()}
+                        onMouseOver={(e) => e.currentTarget.style.borderColor = 'var(--primary)'}
+                        onMouseOut={(e) => e.currentTarget.style.borderColor = 'var(--border-light)'}
+                        >
+                          <input 
+                            type="file" 
+                            id="pay-photo-input"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={handlePayPhotoChange}
+                          />
+                          <span style={{ display: 'block', fontSize: '11.5px', fontWeight: 600, color: 'var(--text-muted)' }}>
+                            Subir Foto o Escáner del Comprobante
+                          </span>
+                          <span style={{ display: 'block', fontSize: '10px', color: 'var(--text-light)', marginTop: '2px' }}>
+                            Formatos: JPG, PNG. Máximo 5MB
+                          </span>
+                        </div>
+                      ) : (
+                        <div style={{
+                          position: 'relative',
+                          border: '1px solid var(--border-light)',
+                          borderRadius: 'var(--radius-md)',
+                          overflow: 'hidden',
+                          backgroundColor: 'var(--bg-app)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '8px'
+                        }}>
+                          <img 
+                            src={payPhoto} 
+                            alt="Vista previa" 
+                            style={{ maxWidth: '100%', maxHeight: '100px', objectFit: 'contain', borderRadius: '4px' }} 
+                          />
+                          <button 
+                            type="button" 
+                            style={{
+                              position: 'absolute',
+                              top: '4px',
+                              right: '4px',
+                              backgroundColor: 'rgba(239, 68, 68, 0.9)',
+                              color: 'white',
+                              border: 'none',
+                              borderRadius: '50%',
+                              width: '20px',
+                              height: '20px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              padding: 0
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPayPhoto(null);
+                            }}
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
@@ -872,7 +1005,67 @@ export const Caja: React.FC = () => {
                 <button 
                   className="btn btn-secondary" 
                   style={{ flex: 1, padding: '8px', fontSize: '12px' }}
-                  onClick={() => { showToast('Simulación: Abriendo ventana de impresión del sistema...', 'info'); }}
+                  onClick={() => {
+                    const pat = selectedRecordForInvoice.patientId ? getPatientById(selectedRecordForInvoice.patientId) : undefined;
+                    const printWindow = window.open('', '_blank');
+                    if (printWindow) {
+                      printWindow.document.write(`
+                        <html>
+                          <head>
+                            <title>Comprobante REC-${selectedRecordForInvoice.id.substring(0, 8).toUpperCase()}</title>
+                            <style>
+                              body { font-family: Arial, sans-serif; color: #333; padding: 40px; margin: 0; }
+                              .box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 30px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+                              .header { display: flex; justify-content: space-between; border-bottom: 2px solid #3b82f6; padding-bottom: 15px; margin-bottom: 20px; }
+                              .title { font-size: 24px; font-weight: bold; color: #3b82f6; }
+                              .details { margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
+                              .table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                              .table th { background: #f8fafc; border-bottom: 1px solid #cbd5e1; padding: 8px; text-align: left; font-weight: bold; }
+                              .table td { padding: 8px; border-bottom: 1px solid #f1f5f9; }
+                              .footer { text-align: center; margin-top: 30px; font-size: 11px; color: #64748b; border-top: 1px dashed #e2e8f0; padding-top: 15px; }
+                              .btn-print { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 15px; }
+                              @media print { .btn-print { display: none; } }
+                            </style>
+                          </head>
+                          <body>
+                            <div style="text-align: right;">
+                              <button class="btn-print" onclick="window.print()">Imprimir / Guardar PDF</button>
+                            </div>
+                            <div class="box">
+                              <div class="header">
+                                <span class="title">XESSIA DENTAL</span>
+                                <span style="font-weight: bold; font-size: 12px; color: #475569;">RECIBO N°: REC-${selectedRecordForInvoice.id.substring(0, 8).toUpperCase()}</span>
+                              </div>
+                              <div class="details">
+                                <strong>Fecha:</strong> ${selectedRecordForInvoice.date}<br/>
+                                <strong>Tipo de Soporte:</strong> ${selectedRecordForInvoice.type === 'Ingreso' ? 'Abono de Paciente' : 'Egreso de Caja (Gasto)'}<br/>
+                                <strong>Método:</strong> ${selectedRecordForInvoice.method}<br/>
+                                <strong>Paciente:</strong> ${pat ? pat.name : 'N/A'} (C.C. ${pat ? pat.document : 'N/A'})
+                              </div>
+                              <table class="table">
+                                <thead>
+                                  <tr>
+                                    <th>Descripción</th>
+                                    <th style="text-align: right;">Valor</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td>${selectedRecordForInvoice.notes || 'Registro en caja'}</td>
+                                    <td style="text-align: right; font-weight: bold;">$${selectedRecordForInvoice.amount.toLocaleString('es-CO')} COP</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                              <div class="footer">
+                                Clínica Dental XESSIA S.A.S. • NIT: 901.482.193-4 • Soporte Técnico de Caja
+                              </div>
+                            </div>
+                          </body>
+                        </html>
+                      `);
+                      printWindow.document.close();
+                    }
+                  }}
                 >
                   <Printer size={14} /> Imprimir {isIncome ? 'Recibo' : 'Soporte'}
                 </button>
@@ -884,7 +1077,62 @@ export const Caja: React.FC = () => {
                     fontSize: '12px',
                     backgroundColor: isIncome ? 'var(--primary)' : 'var(--state-cancelada)'
                   }}
-                  onClick={() => { showToast('Simulación: Descargando PDF...', 'info'); }}
+                  onClick={() => {
+                    const pat = selectedRecordForInvoice.patientId ? getPatientById(selectedRecordForInvoice.patientId) : undefined;
+                    const printWindow = window.open('', '_blank');
+                    if (printWindow) {
+                      printWindow.document.write(`
+                        <html>
+                          <head>
+                            <title>Comprobante REC-${selectedRecordForInvoice.id.substring(0, 8).toUpperCase()}</title>
+                            <style>
+                              body { font-family: Arial, sans-serif; color: #333; padding: 40px; margin: 0; }
+                              .box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 30px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+                              .header { display: flex; justify-content: space-between; border-bottom: 2px solid #3b82f6; padding-bottom: 15px; margin-bottom: 20px; }
+                              .title { font-size: 24px; font-weight: bold; color: #3b82f6; }
+                              .details { margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
+                              .table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                              .table th { background: #f8fafc; border-bottom: 1px solid #cbd5e1; padding: 8px; text-align: left; font-weight: bold; }
+                              .table td { padding: 8px; border-bottom: 1px solid #f1f5f9; }
+                              .footer { text-align: center; margin-top: 30px; font-size: 11px; color: #64748b; border-top: 1px dashed #e2e8f0; padding-top: 15px; }
+                            </style>
+                          </head>
+                          <body onload="window.print()">
+                            <div class="box">
+                              <div class="header">
+                                <span class="title">XESSIA DENTAL</span>
+                                <span style="font-weight: bold; font-size: 12px; color: #475569;">RECIBO N°: REC-${selectedRecordForInvoice.id.substring(0, 8).toUpperCase()}</span>
+                              </div>
+                              <div class="details">
+                                <strong>Fecha:</strong> ${selectedRecordForInvoice.date}<br/>
+                                <strong>Tipo de Soporte:</strong> ${selectedRecordForInvoice.type === 'Ingreso' ? 'Abono de Paciente' : 'Egreso de Caja (Gasto)'}<br/>
+                                <strong>Método:</strong> ${selectedRecordForInvoice.method}<br/>
+                                <strong>Paciente:</strong> ${pat ? pat.name : 'N/A'} (C.C. ${pat ? pat.document : 'N/A'})
+                              </div>
+                              <table class="table">
+                                <thead>
+                                  <tr>
+                                    <th>Descripción</th>
+                                    <th style="text-align: right;">Valor</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  <tr>
+                                    <td>${selectedRecordForInvoice.notes || 'Registro en caja'}</td>
+                                    <td style="text-align: right; font-weight: bold;">$${selectedRecordForInvoice.amount.toLocaleString('es-CO')} COP</td>
+                                  </tr>
+                                </tbody>
+                              </table>
+                              <div class="footer">
+                                Clínica Dental XESSIA S.A.S. • NIT: 901.482.193-4 • Soporte Técnico de Caja
+                              </div>
+                            </div>
+                          </body>
+                        </html>
+                      `);
+                      printWindow.document.close();
+                    }
+                  }}
                 >
                   <Download size={14} /> Guardar PDF
                 </button>

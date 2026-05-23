@@ -2,6 +2,15 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { api } from '../services/api';
 
 // Interfaces
+export interface BlockedRange {
+  _id?: string;
+  id?: string;
+  date: string;
+  timeStart: string;
+  timeEnd: string;
+  reason: string;
+}
+
 export interface Doctor {
   id: string;
   name: string;
@@ -10,13 +19,15 @@ export interface Doctor {
   workingHours: string; // e.g. "08:00 - 17:00"
   color: string;
   avatar: string;
+  blockedRanges?: BlockedRange[];
 }
+
 
 export interface Procedure {
   id?: string;
   code: string;
   name: string;
-  category: 'CONSULTAS' | 'LIMPIEZA Y PREVENCIÓN' | 'RADIOLOGÍA' | 'ORTODONCIA' | 'CIRUGÍA' | 'RESTAURACIÓN Y ESTÉTICA' | 'PRÓTESIS Y REHABILITACIÓN';
+  category: string;
   duration: number; // in minutes
   price: number; // in COP
   color: string;
@@ -73,6 +84,15 @@ export interface FinancialRecord {
   receiptPhoto?: string; // Simulación de foto del comprobante (URL o base64)
 }
 
+export interface ConfirmConfig {
+  title: string;
+  message: string;
+  onConfirm: () => void;
+  onCancel?: () => void;
+  confirmText?: string;
+  cancelText?: string;
+}
+
 export interface Toast {
   id: string;
   message: string;
@@ -99,22 +119,32 @@ interface AppContextType {
   toasts: Toast[];
   showToast: (message: string, type?: 'success' | 'error' | 'warning' | 'info') => void;
   removeToast: (id: string) => void;
+
+  // Confirmations
+  confirmConfig: ConfirmConfig | null;
+  showConfirm: (config: ConfirmConfig | null) => void;
   
   // Actions
   addPatient: (patient: Omit<Patient, 'id' | 'debt' | 'odontogram'>) => Promise<Patient>;
   updatePatient: (id: string, patient: Partial<Patient>) => Promise<void>;
   deletePatient: (id: string) => Promise<void>;
-  updateOdontogram: (patientId: string, toothNumber: number, section: string, state: 'caries' | 'conducto' | 'corona' | 'none') => Promise<void>;
+  updateOdontogram: (
+    patientId: string, 
+    toothNumber: number | null, 
+    section: string | null, 
+    state: 'caries' | 'conducto' | 'corona' | 'none' | null,
+    fullOdontogram?: Record<number, Record<string, 'caries' | 'conducto' | 'corona' | 'none'>>
+  ) => Promise<void>;
   
   addProcedure: (procedure: Omit<Procedure, 'id'>) => Promise<Procedure>;
   updateProcedure: (id: string, procedure: Partial<Procedure>) => Promise<void>;
   deleteProcedure: (id: string) => Promise<void>;
   
-  addAppointment: (appointment: Omit<Appointment, 'id' | 'paidAmount' | 'paymentStatus'>) => Promise<void>;
+  addAppointment: (appointment: Omit<Appointment, 'id' | 'paidAmount' | 'paymentStatus'> & { paidAmount?: number; paymentMethod?: string }) => Promise<void>;
   updateAppointment: (id: string, appointment: Partial<Appointment>) => Promise<void>;
   deleteAppointment: (id: string) => Promise<void>;
   
-  addFinancialRecord: (record: Omit<FinancialRecord, 'id' | 'date'> & { date?: string }) => Promise<void>;
+  addFinancialRecord: (record: Omit<FinancialRecord, 'id' | 'date'> & { date?: string; receiptPhoto?: string }) => Promise<void>;
   
   addDoctor: (doc: Omit<Doctor, 'id' | 'avatar'>) => Promise<Doctor>;
   updateDoctor: (id: string, doc: Partial<Doctor>) => Promise<void>;
@@ -136,6 +166,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [currentRole, setCurrentRole] = useState<'Secretaria' | 'Doctor' | 'Administrador'>('Secretaria');
   const [spotlightOpen, setSpotlightOpen] = useState<boolean>(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig | null>(null);
+  const showConfirm = (config: ConfirmConfig | null) => {
+    setConfirmConfig(config);
+  };
   
   // Auth & Connection states
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -298,28 +332,30 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+
+
   const updateOdontogram = async (
     patientId: string,
-    toothNumber: number,
-    section: string,
-    state: 'caries' | 'conducto' | 'corona' | 'none'
+    toothNumber: number | null,
+    section: string | null,
+    state: 'caries' | 'conducto' | 'corona' | 'none' | null,
+    fullOdontogram?: Record<number, Record<string, 'caries' | 'conducto' | 'corona' | 'none'>>
   ): Promise<void> => {
     try {
-      const updatedPat = await api.patch(`/patients/${patientId}/odontogram`, {
-        toothNumber,
-        section,
-        state
-      });
+      const payload = fullOdontogram 
+        ? { odontogram: fullOdontogram }
+        : { toothNumber, section, state };
+      const updatedPat = await api.patch(`/patients/${patientId}/odontogram`, payload);
       const mapped: Patient = { ...updatedPat, id: updatedPat._id };
       setPatients(prev => prev.map(p => p.id === patientId ? mapped : p));
-      showToast(`Diente ${toothNumber} guardado en la nube`, 'success');
+      showToast(fullOdontogram ? 'Odontograma guardado correctamente' : `Diente ${toothNumber} guardado en la nube`, 'success');
     } catch (err: any) {
       showToast(err.message || 'Error al actualizar odontograma', 'error');
       throw err;
     }
   };
 
-  const addAppointment = async (newAppt: Omit<Appointment, 'id' | 'paidAmount' | 'paymentStatus'>): Promise<void> => {
+  const addAppointment = async (newAppt: Omit<Appointment, 'id' | 'paidAmount' | 'paymentStatus'> & { paidAmount?: number; paymentMethod?: string }): Promise<void> => {
     try {
       const savedAppt = await api.post('/appointments', newAppt);
       const mapped: Appointment = { ...savedAppt, id: savedAppt._id };
@@ -487,7 +523,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       toasts,
       showToast,
       removeToast,
-      
+      confirmConfig,
+      showConfirm,
       addPatient,
       updatePatient,
       deletePatient,

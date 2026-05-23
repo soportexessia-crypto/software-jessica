@@ -5,7 +5,6 @@ const ProcedureSchema = new mongoose.Schema({
   name: { type: String, required: true },
   category: {
     type: String,
-    enum: ['CONSULTAS', 'LIMPIEZA Y PREVENCIÓN', 'RADIOLOGÍA', 'ORTODONCIA', 'CIRUGÍA', 'RESTAURACIÓN Y ESTÉTICA', 'PRÓTESIS Y REHABILITACIÓN'],
     required: true
   },
   duration: { type: Number, required: true }, // minutos

@@ -44,7 +44,7 @@ export const Header: React.FC<HeaderProps> = ({ activeModule, onQuickAppointment
       {/* Right Tools: Role Selector and Quick Appointment */}
       <div className="header-right">
         {/* Role Switcher for demonstration purposes */}
-        <div className="role-selector-container hide-mobile" style={{ backgroundColor: 'var(--bg-hover)', borderColor: 'var(--border-light)' }}>
+        <div className="role-selector-container hide-mobile" style={{ backgroundColor: 'var(--bg-hover)', borderColor: 'var(--border-light)', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <UserCheck size={14} style={{ color: 'var(--text-muted)' }} />
           <span style={{ color: 'var(--text-main)', fontSize: '12px', fontWeight: 700 }}>Secretaria</span>
         </div>

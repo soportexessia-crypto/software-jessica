@@ -33,25 +33,56 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
+
+
 // POST /api/appointments — crear cita
 router.post('/', auth, async (req, res) => {
   try {
     const discount = req.body.discount !== undefined ? Number(req.body.discount) : 0;
+    const paidAmount = req.body.paidAmount !== undefined ? Number(req.body.paidAmount) : 0;
+
+    const procedure = await Procedure.findOne({ code: req.body.procedureCode });
+    let finalPrice = 0;
+    if (procedure) {
+      finalPrice = Math.round(procedure.price * (1 - discount / 100));
+    }
+
+    const outstandingDebt = finalPrice - paidAmount;
+    let paymentStatus = 'deuda';
+    if (paidAmount >= finalPrice) {
+      paymentStatus = 'pagado';
+    } else if (paidAmount > 0) {
+      paymentStatus = 'parcial';
+    }
+
     const appt = new Appointment({
       ...req.body,
       discount,
-      paidAmount: 0,
-      paymentStatus: 'deuda'
+      paidAmount,
+      paymentStatus
     });
     await appt.save();
 
-    // Sumar la deuda al paciente
-    const procedure = await Procedure.findOne({ code: req.body.procedureCode });
-    if (procedure) {
-      const finalPrice = Math.round(procedure.price * (1 - discount / 100));
+    // Increment patient debt by outstandingDebt only!
+    if (outstandingDebt > 0) {
       await Patient.findByIdAndUpdate(req.body.patientId, {
-        $inc: { debt: finalPrice }
+        $inc: { debt: outstandingDebt }
       });
+    }
+
+    // Also, if paidAmount > 0, we automatically register a financial record (Ingreso)
+    if (paidAmount > 0) {
+      const Financial = require('../models/Financial');
+      const finRecord = new Financial({
+        patientId: req.body.patientId,
+        appointmentId: appt._id,
+        date: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        amount: paidAmount,
+        method: req.body.paymentMethod || 'Efectivo',
+        type: 'Ingreso',
+        notes: `Abono inicial para cita de ${procedure ? procedure.name : 'Tratamiento'}`
+      });
+      await finRecord.save();
     }
 
     res.status(201).json(appt);

@@ -1,17 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { Info } from 'lucide-react';
+import { Info, Save } from 'lucide-react';
 
 interface OdontogramaProps {
   patientId: string;
 }
 
 export const Odontograma: React.FC<OdontogramaProps> = ({ patientId }) => {
-  const { getPatientById, updateOdontogram } = useApp();
+  const { getPatientById, updateOdontogram, showToast } = useApp();
   const patient = getPatientById(patientId);
 
   const [activeTool, setActiveTool] = useState<'caries' | 'conducto' | 'corona' | 'none'>('caries');
   const [viewMode, setViewMode] = useState<'adulto' | 'infantil'>('adulto');
+
+  // Local state for full odontogram object
+  const [localOdontogram, setLocalOdontogram] = useState<any>({});
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Sync with patient data on load or change
+  useEffect(() => {
+    if (patient) {
+      setLocalOdontogram(patient.odontogram || {});
+      setHasUnsavedChanges(false);
+    }
+  }, [patientId, patient]);
 
   if (!patient) return <div>Cargando paciente...</div>;
 
@@ -23,18 +36,48 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ patientId }) => {
   const lowerChildTeeth = [85, 84, 83, 82, 81, 71, 72, 73, 74, 75];
 
   const handleSectionClick = (toothNum: number, section: string) => {
-    // Apply currently active tool to that section
-    updateOdontogram(patientId, toothNum, section, activeTool);
+    const toothNumStr = String(toothNum);
+    const existingTooth = localOdontogram[toothNumStr] || { vestibular: 'none', distal: 'none', palatina: 'none', mesial: 'none', oclusal: 'none' };
+    const existingState = existingTooth[section] || 'none';
+
+    // Clinical rule: cannot deselect already diagnosed tooth sections
+    if (existingState !== 'none' && activeTool === 'none') {
+      showToast('No se permite desmarcar un diagnóstico clínico ya registrado.', 'warning');
+      return;
+    }
+
+    const updatedTooth = {
+      ...existingTooth,
+      [section]: activeTool
+    };
+
+    setLocalOdontogram((prev: any) => ({
+      ...prev,
+      [toothNumStr]: updatedTooth
+    }));
+    setHasUnsavedChanges(true);
   };
 
   const getSectionClass = (toothNum: number, section: string) => {
-    const toothData = patient.odontogram[toothNum];
+    const toothData = localOdontogram[String(toothNum)];
     if (!toothData) return 'tooth-section';
     const state = toothData[section];
     if (state === 'caries') return 'tooth-section caries';
     if (state === 'conducto') return 'tooth-section conducto';
     if (state === 'corona') return 'tooth-section corona';
     return 'tooth-section';
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      await updateOdontogram(patientId, null, null, null, localOdontogram);
+      setHasUnsavedChanges(false);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSaving(false);
+    }
   };
 
   // Renders a single tooth with 5 clickable sections in SVG
@@ -198,6 +241,28 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ patientId }) => {
         >
           Limpiar Cara
         </button>
+
+        <button 
+          type="button"
+          className="btn btn-primary animate-pulse"
+          style={{ 
+            marginLeft: 'auto',
+            padding: '8px 16px', 
+            fontSize: '12px', 
+            borderRadius: 'var(--radius-sm)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            boxShadow: hasUnsavedChanges ? '0 0 10px rgba(59, 130, 246, 0.4)' : 'none',
+            border: 'none',
+            fontWeight: 700
+          }}
+          onClick={handleSave}
+          disabled={saving}
+        >
+          <Save size={14} />
+          {saving ? 'Guardando...' : hasUnsavedChanges ? 'Guardar Cambios *' : 'Guardar Odontograma'}
+        </button>
       </div>
 
       <div style={{ width: '100%', overflowX: 'auto', paddingBottom: '10px' }}>
@@ -251,7 +316,7 @@ export const Odontograma: React.FC<OdontogramaProps> = ({ patientId }) => {
       >
         <Info size={16} style={{ flexShrink: 0, marginTop: '1px', color: 'var(--text-light)' }} />
         <div>
-          <strong>Instrucciones:</strong> Seleccione una herramienta en la paleta diagnóstica superior (ej. Caries) y luego haga clic directamente sobre una de las 5 caras de cualquier diente para colorearlo. El cambio se guarda automáticamente.
+          <strong>Instrucciones:</strong> Seleccione una herramienta en la paleta diagnóstica superior (ej. Caries) y luego haga clic directamente sobre una de las 5 caras de cualquier diente para colorearlo localmente. Recuerde hacer clic en <strong>Guardar Odontograma</strong> para persistir su diagnóstico en la base de datos de manera definitiva.
         </div>
       </div>
     </div>

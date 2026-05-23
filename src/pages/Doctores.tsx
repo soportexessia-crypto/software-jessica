@@ -3,7 +3,6 @@ import { useApp } from '../context/AppContext';
 import type { Doctor } from '../context/AppContext';
 import { Calendar, Clock, Lock } from 'lucide-react';
 import { format12h, TimeSelector12h } from '../components/QuickAppointmentModal';
-
 export const Doctores: React.FC = () => {
   const { 
     doctors, 
@@ -13,9 +12,9 @@ export const Doctores: React.FC = () => {
     showToast,
     addDoctor,
     updateDoctor,
-    deleteDoctor
+    deleteDoctor,
+    showConfirm
   } = useApp();
-
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
   
   // Set default selected doctor when doctors list loads
@@ -24,6 +23,14 @@ export const Doctores: React.FC = () => {
       setSelectedDoctorId(doctors[0].id);
     }
   }, [doctors, selectedDoctorId]);
+  const formatWorkingHours12h = (hoursStr: string): string => {
+    if (!hoursStr) return '';
+    const parts = hoursStr.split('-');
+    if (parts.length !== 2) return hoursStr;
+    const start = parts[0].trim();
+    const end = parts[1].trim();
+    return `${format12h(start)} - ${format12h(end)}`;
+  };
 
   // Modal form states
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -97,30 +104,56 @@ export const Doctores: React.FC = () => {
       setIsModalOpen(false);
     } catch (err) {}
   };
-
   const handleDelete = async (id: string) => {
-    if (window.confirm('¿Está seguro de que desea desactivar a este especialista? Se ocultará de la lista activa.')) {
-      try {
-        await deleteDoctor(id);
-        const remaining = doctors.filter(d => d.id !== id);
-        setSelectedDoctorId(remaining[0]?.id || '');
-      } catch (err) {}
-    }
+    showConfirm({
+      title: 'Desactivar Especialista',
+      message: '¿Está seguro de que desea desactivar a este especialista? Se ocultará de la lista activa.',
+      onConfirm: async () => {
+        try {
+          await deleteDoctor(id);
+          const remaining = doctors.filter(d => d.id !== id);
+          setSelectedDoctorId(remaining[0]?.id || '');
+        } catch (err) {}
+      }
+    });
   };
 
-  const handleBlockSchedule = (e: React.FormEvent) => {
+  const handleBlockSchedule = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedDoctor) return;
-    if (!blockDate || !blockReason) {
-      showToast('Por favor complete todos los datos del bloqueo.', 'warning');
+    if (!blockDate) {
+      showToast('Por favor seleccione una fecha.', 'warning');
       return;
     }
     
-    showToast(`Bloqueo de horario registrado para el especialista ${selectedDoctor.name} el día ${blockDate} de ${blockTimeStart} a ${blockTimeEnd}. Motivo: ${blockReason}.`, 'success');
-    setBlockDate('');
-    setBlockReason('');
+    const existingIndex = selectedDoctor.blockedRanges?.findIndex(b => b.date === blockDate) ?? -1;
+    let newBlockedRanges = [...(selectedDoctor.blockedRanges || [])];
+    
+    if (existingIndex > -1) {
+      // Unlock
+      newBlockedRanges.splice(existingIndex, 1);
+      await updateDoctor(selectedDoctor.id, { blockedRanges: newBlockedRanges });
+      showToast(`Horario desbloqueado para el día ${blockDate}.`, 'success');
+      setBlockDate('');
+      setBlockReason('');
+    } else {
+      // Lock
+      if (!blockReason) {
+        showToast('Por favor complete el motivo del bloqueo.', 'warning');
+        return;
+      }
+      newBlockedRanges.push({
+        date: blockDate,
+        timeStart: blockTimeStart,
+        timeEnd: blockTimeEnd,
+        reason: blockReason
+      });
+      await updateDoctor(selectedDoctor.id, { blockedRanges: newBlockedRanges });
+      showToast(`Horario bloqueado para el día ${blockDate} de ${format12h(blockTimeStart)} a ${format12h(blockTimeEnd)}.`, 'success');
+      setBlockDate('');
+      setBlockReason('');
+    }
   };
-
   return (
     <div className="grid-12 fade-in" style={{ gap: '28px' }}>
       
@@ -264,7 +297,7 @@ export const Doctores: React.FC = () => {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13.5px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Clock size={16} className="text-muted" /> 
-                  Horas de Consulta: <strong>{selectedDoctor.workingHours}</strong>
+                  Horas de Consulta: <strong>{formatWorkingHours12h(selectedDoctor.workingHours)}</strong>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
                   <Calendar size={16} className="text-muted" style={{ marginTop: '2px' }} />
@@ -372,10 +405,47 @@ export const Doctores: React.FC = () => {
                   />
                 </div>
 
-                <button type="submit" className="btn btn-primary" style={{ width: '100%' }}>
-                  Registrar Bloqueo Clínico
+                <button 
+                  type="submit" 
+                  className={selectedDoctor.blockedRanges?.some(b => b.date === blockDate) ? "btn" : "btn btn-primary"} 
+                  style={{ 
+                    width: '100%', 
+                    backgroundColor: selectedDoctor.blockedRanges?.some(b => b.date === blockDate) ? 'var(--state-cancelada-bg)' : undefined, 
+                    color: selectedDoctor.blockedRanges?.some(b => b.date === blockDate) ? 'var(--state-cancelada)' : undefined,
+                    borderColor: selectedDoctor.blockedRanges?.some(b => b.date === blockDate) ? '#fca5a5' : undefined 
+                  }}
+                >
+                  {selectedDoctor.blockedRanges?.some(b => b.date === blockDate) ? 'Desbloquear Horario' : 'Registrar Bloqueo Clínico'}
                 </button>
               </form>
+
+              {selectedDoctor.blockedRanges && selectedDoctor.blockedRanges.length > 0 && (
+                <div style={{ marginTop: '12px', borderTop: '1px solid var(--border-light)', paddingTop: '12px' }}>
+                  <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Bloqueos Activos:</span>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                    {selectedDoctor.blockedRanges.map((block, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', backgroundColor: 'white', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-light)', fontSize: '11px' }}>
+                        <div>
+                          <strong>{block.date}</strong>: {format12h(block.timeStart)} - {format12h(block.timeEnd)} <br/>
+                          <span style={{ color: 'var(--text-muted)' }}>{block.reason}</span>
+                        </div>
+                        <button 
+                          type="button" 
+                          className="btn" 
+                          style={{ padding: '2px 6px', fontSize: '9px', backgroundColor: 'var(--state-cancelada-bg)', color: 'var(--state-cancelada)', border: '1px solid #fca5a5' }}
+                          onClick={async () => {
+                            const newBlocked = (selectedDoctor.blockedRanges || []).filter((_, i) => i !== idx);
+                            await updateDoctor(selectedDoctor.id, { blockedRanges: newBlocked });
+                            showToast(`Horario desbloqueado para el día ${block.date}.`, 'success');
+                          }}
+                        >
+                          Eliminar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 

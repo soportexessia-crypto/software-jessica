@@ -7,7 +7,7 @@ const FinancialSchema = new mongoose.Schema({
   amount:         { type: Number, required: true },
   method: {
     type: String,
-    enum: ['Efectivo', 'Tarjeta', 'Transferencia', 'Nequi', 'Daviplata'],
+    enum: ['Efectivo', 'Tarjeta', 'Transferencia', 'Nequi', 'Daviplata', 'Bancolombia'],
     required: true
   },
   type: {
