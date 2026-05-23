@@ -28,6 +28,10 @@ const MainAppContent: React.FC = () => {
   const [isForceUpdateRequired, setIsForceUpdateRequired] = useState(false);
   const [isLiveUpdating, setIsLiveUpdating] = useState(false);
   const [versionConfig, setVersionConfig] = useState<any>(null);
+  const [downloadProgress, setDownloadProgress] = useState<number | null>(null);
+  const [downloadState, setDownloadState] = useState<'idle' | 'downloading' | 'completed' | 'error'>('idle');
+  const [downloadSpeed, setDownloadSpeed] = useState<string>('');
+  const [downloadedBytes, setDownloadedBytes] = useState<string>('');
 
   React.useEffect(() => {
     const isVersionLower = (current: string, target: string): boolean => {
@@ -127,12 +131,84 @@ const MainAppContent: React.FC = () => {
 
   if (isForceUpdateRequired && versionConfig) {
     const userAgent = navigator.userAgent.toLowerCase();
-    const isAndroid = /android/i.test(userAgent);
-    const isWindows = /windows/i.test(userAgent);
+    const isAndroid = /android/i.test(userAgent) || /mobile/i.test(userAgent);
+    const isPC = !isAndroid;
+
+    const handleStartDownload = async (url: string, filename: string) => {
+      try {
+        setDownloadState('downloading');
+        setDownloadProgress(0);
+        setDownloadedBytes('0.0 MB');
+        setDownloadSpeed('Conectando...');
+        
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Failed to download update file');
+        
+        const contentLength = response.headers.get('content-length');
+        if (!contentLength) {
+          const blob = await response.blob();
+          const blobUrl = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(blobUrl);
+          setDownloadProgress(100);
+          setDownloadState('completed');
+          return;
+        }
+        
+        const totalBytes = parseInt(contentLength, 10);
+        let loadedBytes = 0;
+        
+        const reader = response.body?.getReader();
+        if (!reader) throw new Error('Reader not supported');
+        
+        const chunks: Uint8Array[] = [];
+        const startTime = Date.now();
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          
+          chunks.push(value);
+          loadedBytes += value.length;
+          
+          const progress = Math.round((loadedBytes / totalBytes) * 100);
+          setDownloadProgress(progress);
+          setDownloadedBytes(`${(loadedBytes / (1024 * 1024)).toFixed(1)} MB / ${(totalBytes / (1024 * 1024)).toFixed(1)} MB`);
+          
+          const elapsedSeconds = (Date.now() - startTime) / 1000;
+          if (elapsedSeconds > 0) {
+            const speedMbps = ((loadedBytes * 8) / (1024 * 1024)) / elapsedSeconds;
+            setDownloadSpeed(`${speedMbps.toFixed(1)} Mbps`);
+          }
+        }
+        
+        const blob = new Blob(chunks as any);
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(blobUrl);
+        
+        setDownloadState('completed');
+        setDownloadProgress(100);
+      } catch (err) {
+        console.error('Download update error:', err);
+        setDownloadState('error');
+        setDownloadProgress(null);
+      }
+    };
 
     return (
       <div className="update-block-screen">
-        <div className="update-block-container">
+        <div className="update-block-container" style={{ maxWidth: '500px' }}>
           <img src="img/Logo.png" alt="XESSIA" className="update-block-logo" />
           
           <div className="update-block-icon">
@@ -141,12 +217,12 @@ const MainAppContent: React.FC = () => {
 
           <h2 className="update-block-title">Actualización Obligatoria</h2>
           
-          <p className="update-block-desc">
+          <p className="update-block-desc" style={{ marginBottom: '20px' }}>
             Hemos realizado mejoras críticas de seguridad y rendimiento en XESSIA Cloud. 
             Para continuar garantizando la integridad de tus datos clínicos, debes actualizar la aplicación.
           </p>
 
-          <div className="update-block-versions">
+          <div className="update-block-versions" style={{ marginBottom: '24px' }}>
             <div className="update-version-tag current">
               Versión instalada: <strong>v{CLIENT_VERSION}</strong>
             </div>
@@ -156,46 +232,114 @@ const MainAppContent: React.FC = () => {
             </div>
           </div>
 
-          <div className="update-download-grid">
-            {/* Windows Download Card */}
-            <div 
-              className={`update-download-card ${isWindows ? 'recommended' : ''}`}
-              onClick={() => window.open(versionConfig.downloadWindows, '_blank')}
-            >
-              {isWindows && (
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            {isPC ? (
+              /* Windows Download Card */
+              <div 
+                className="update-download-card recommended"
+                style={{ cursor: downloadState === 'downloading' ? 'default' : 'pointer', width: '100%', maxWidth: '380px' }}
+                onClick={() => {
+                  if (downloadState !== 'downloading') {
+                    handleStartDownload(versionConfig.downloadWindows, 'XESSIA_Setup.exe');
+                  }
+                }}
+              >
                 <span className="update-recommendation-badge">PC de la Clínica</span>
-              )}
-              <div className="update-card-icon">
-                <Laptop size={24} />
+                <div className="update-card-icon">
+                  <Laptop size={24} />
+                </div>
+                <h3 className="update-card-title">XESSIA para Windows</h3>
+                <p className="update-card-desc">
+                  Instalador ejecutable de escritorio (.exe) para actualizar la aplicación.
+                </p>
+                
+                {downloadState === 'idle' && (
+                  <button className="update-download-btn">
+                    <Download size={14} /> Actualizar Ahora
+                  </button>
+                )}
+                
+                {downloadState === 'downloading' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
+                      <span>Descargando: {downloadProgress}%</span>
+                      <span>{downloadSpeed}</span>
+                    </div>
+                    <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--border-light)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: `${downloadProgress}%`, height: '100%', backgroundColor: 'var(--primary)', borderRadius: '3px', transition: 'width 0.1s ease' }}></div>
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--text-light)', textAlign: 'right' }}>{downloadedBytes}</span>
+                  </div>
+                )}
+                
+                {downloadState === 'completed' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', textAlign: 'center', color: '#10b981' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600 }}>✓ Descarga Completada</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Abra el archivo "XESSIA_Setup.exe" en su carpeta de descargas para aplicar la actualización.</span>
+                  </div>
+                )}
+                
+                {downloadState === 'error' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', textAlign: 'center', color: '#ef4444' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600 }}>⚠ Error en la descarga</span>
+                    <button className="btn" style={{ fontSize: '11px', padding: '4px 10px', marginTop: '4px' }} onClick={(e) => { e.stopPropagation(); handleStartDownload(versionConfig.downloadWindows, 'XESSIA_Setup.exe'); }}>Reintentar descarga</button>
+                  </div>
+                )}
               </div>
-              <h3 className="update-card-title">XESSIA para Windows</h3>
-              <p className="update-card-desc">
-                Instalador ejecutable de escritorio (.exe) optimizado para el computador principal.
-              </p>
-              <button className="update-download-btn">
-                <Download size={14} /> Descargar para PC
-              </button>
-            </div>
-
-            {/* Android Download Card */}
-            <div 
-              className={`update-download-card ${isAndroid ? 'recommended' : ''}`}
-              onClick={() => window.open(versionConfig.downloadAndroid, '_blank')}
-            >
-              {isAndroid && (
+            ) : (
+              /* Android Download Card */
+              <div 
+                className="update-download-card recommended"
+                style={{ cursor: downloadState === 'downloading' ? 'default' : 'pointer', width: '100%', maxWidth: '380px' }}
+                onClick={() => {
+                  if (downloadState !== 'downloading') {
+                    handleStartDownload(versionConfig.downloadAndroid, 'XESSIA.apk');
+                  }
+                }}
+              >
                 <span className="update-recommendation-badge">Celular de la Clínica</span>
-              )}
-              <div className="update-card-icon">
-                <Smartphone size={24} />
+                <div className="update-card-icon">
+                  <Smartphone size={24} />
+                </div>
+                <h3 className="update-card-title">XESSIA para Android</h3>
+                <p className="update-card-desc">
+                  Paquete de aplicación nativa (.apk) para instalar la actualización.
+                </p>
+                
+                {downloadState === 'idle' && (
+                  <button className="update-download-btn">
+                    <Download size={14} /> Actualizar Ahora
+                  </button>
+                )}
+                
+                {downloadState === 'downloading' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', width: '100%', marginTop: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)' }}>
+                      <span>Descargando: {downloadProgress}%</span>
+                      <span>{downloadSpeed}</span>
+                    </div>
+                    <div style={{ width: '100%', height: '6px', backgroundColor: 'var(--border-light)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: `${downloadProgress}%`, height: '100%', backgroundColor: 'var(--primary)', borderRadius: '3px', transition: 'width 0.1s ease' }}></div>
+                    </div>
+                    <span style={{ fontSize: '11px', color: 'var(--text-light)', textAlign: 'right' }}>{downloadedBytes}</span>
+                  </div>
+                )}
+                
+                {downloadState === 'completed' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', textAlign: 'center', color: '#10b981' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600 }}>✓ Descarga Completada</span>
+                    <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Instale el archivo "XESSIA.apk" en su dispositivo para aplicar la actualización.</span>
+                  </div>
+                )}
+                
+                {downloadState === 'error' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', textAlign: 'center', color: '#ef4444' }}>
+                    <span style={{ fontSize: '13px', fontWeight: 600 }}>⚠ Error en la descarga</span>
+                    <button className="btn" style={{ fontSize: '11px', padding: '4px 10px', marginTop: '4px' }} onClick={(e) => { e.stopPropagation(); handleStartDownload(versionConfig.downloadAndroid, 'XESSIA.apk'); }}>Reintentar descarga</button>
+                  </div>
+                )}
               </div>
-              <h3 className="update-card-title">XESSIA para Android</h3>
-              <p className="update-card-desc">
-                Paquete de aplicación nativa (.apk) optimizado para dispositivos móviles y tablets.
-              </p>
-              <button className="update-download-btn">
-                <Download size={14} /> Descargar APK
-              </button>
-            </div>
+            )}
           </div>
         </div>
       </div>

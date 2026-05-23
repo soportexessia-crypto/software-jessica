@@ -10,8 +10,8 @@ router.get('/version', (req, res) => {
   res.json({
     minVersion: process.env.MIN_VERSION || '1.0.1',
     latestVersion: process.env.LATEST_VERSION || '1.0.1',
-    downloadWindows: process.env.DOWNLOAD_WINDOWS || `${baseUrl}/uploads/releases/XESSIA_Software_Jessica_Setup.exe`,
-    downloadAndroid: process.env.DOWNLOAD_ANDROID || `${baseUrl}/uploads/releases/XESSIA_Software_Jessica.apk`
+    downloadWindows: process.env.DOWNLOAD_WINDOWS || `${baseUrl}/uploads/releases/XESSIA_Setup.exe`,
+    downloadAndroid: process.env.DOWNLOAD_ANDROID || `${baseUrl}/uploads/releases/XESSIA.apk`
   });
 });
 
