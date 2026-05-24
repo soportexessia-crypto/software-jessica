@@ -283,6 +283,7 @@ export const Agenda: React.FC = () => {
               const cellAppts = appointments.filter(a => {
                 if (a.date !== cell.dateString) return false;
                 if (filterDoctorId !== 'todos' && a.doctorId !== filterDoctorId) return false;
+                if (a.status === 'finalizada') return false; // Omit finalized appointments
                 return true;
               });
 

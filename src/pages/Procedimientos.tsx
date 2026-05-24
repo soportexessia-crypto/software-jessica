@@ -57,9 +57,21 @@ export const Procedimientos: React.FC = () => {
     setIsModalOpen(true);
   };
 
+  const generateUniqueProcedureCode = (): string => {
+    let nextNum = 1;
+    while (true) {
+      const codeCandidate = `PROC-${nextNum}`;
+      const exists = procedures.some(p => p.code.trim().toUpperCase() === codeCandidate.toUpperCase());
+      if (!exists) {
+        return codeCandidate;
+      }
+      nextNum++;
+    }
+  };
+
   const handleOpenCreate = () => {
     setEditingProc(null);
-    setFormCode(`PROC-${procedures.length + 10}`);
+    setFormCode(generateUniqueProcedureCode());
     setFormName('');
     setFormCategory('CONSULTAS');
     setFormDuration(30);
@@ -312,7 +324,7 @@ export const Procedimientos: React.FC = () => {
                       type="text" 
                       className="form-input" 
                       required 
-                      disabled={!!editingProc}
+                      disabled={true}
                       value={formCode}
                       onChange={(e) => setFormCode(e.target.value)}
                     />

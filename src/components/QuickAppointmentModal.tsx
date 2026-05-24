@@ -23,12 +23,21 @@ export function format12h(time24: string): string {
 /** Convierte selección 12h a HH:MM (24h) para MongoDB */
 export function parse24h(hour12: string, minute: string, period: string): string {
   let h = parseInt(hour12, 10);
+  if (isNaN(h)) h = 12;
+  if (h < 1) h = 1;
+  if (h > 12) h = 12;
+
+  let m = parseInt(minute, 10);
+  if (isNaN(m)) m = 0;
+  if (m < 0) m = 0;
+  if (m > 59) m = 59;
+
   if (period === 'AM') {
     if (h === 12) h = 0;
   } else {
     if (h !== 12) h += 12;
   }
-  return `${String(h).padStart(2, '0')}:${minute}`;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
 }
 
 /** Extrae hora12, minuto y período desde HH:MM */
@@ -50,10 +59,39 @@ interface TimeSelector12hProps {
 }
 
 export const TimeSelector12h: React.FC<TimeSelector12hProps> = ({ value, onChange, required }) => {
-  const { hour12, minute, period } = splitTime12(value);
+  const { hour12: initialHour, minute: initialMinute, period: initialPeriod } = splitTime12(value);
 
-  const handleChange = (newHour: string, newMin: string, newPeriod: string) => {
-    onChange(parse24h(newHour, newMin, newPeriod));
+  const [localHour, setLocalHour] = useState(initialHour);
+  const [localMinute, setLocalMinute] = useState(initialMinute);
+  const [localPeriod, setLocalPeriod] = useState(initialPeriod);
+
+  // Synchronize local state with value updates from parent
+  useEffect(() => {
+    const { hour12, minute, period } = splitTime12(value);
+    setLocalHour(hour12);
+    setLocalMinute(minute);
+    setLocalPeriod(period);
+  }, [value]);
+
+  const handleHourChange = (val: string) => {
+    const clean = val.replace(/[^0-9]/g, '');
+    setLocalHour(clean);
+    
+    const h = clean === '' ? '12' : clean;
+    onChange(parse24h(h, localMinute === '' ? '00' : localMinute, localPeriod));
+  };
+
+  const handleMinuteChange = (val: string) => {
+    const clean = val.replace(/[^0-9]/g, '');
+    setLocalMinute(clean);
+    
+    const m = clean === '' ? '00' : clean;
+    onChange(parse24h(localHour === '' ? '12' : localHour, m, localPeriod));
+  };
+
+  const handlePeriodChange = (p: string) => {
+    setLocalPeriod(p);
+    onChange(parse24h(localHour === '' ? '12' : localHour, localMinute === '' ? '00' : localMinute, p));
   };
 
   const hours = Array.from({ length: 12 }, (_, i) => String(i + 1));
@@ -61,31 +99,59 @@ export const TimeSelector12h: React.FC<TimeSelector12hProps> = ({ value, onChang
 
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 80px', gap: '6px' }}>
+      <div style={{ position: 'relative' }}>
+        <input
+          type="text"
+          className="form-input"
+          required={required}
+          value={localHour}
+          list="hours-list"
+          placeholder="Hora"
+          onChange={e => handleHourChange(e.target.value)}
+          onBlur={() => {
+            let h = parseInt(localHour, 10);
+            if (isNaN(h) || h < 1) h = 12;
+            if (h > 12) h = 12;
+            handleHourChange(String(h));
+          }}
+          style={{ textAlign: 'center', fontWeight: 700, width: '100%', margin: 0, paddingRight: '8px' }}
+        />
+        <datalist id="hours-list">
+          {hours.map(h => <option key={h} value={h} />)}
+        </datalist>
+      </div>
+
+      <div style={{ position: 'relative' }}>
+        <input
+          type="text"
+          className="form-input"
+          required={required}
+          value={localMinute}
+          list="minutes-list"
+          placeholder="Min"
+          onChange={e => handleMinuteChange(e.target.value)}
+          onBlur={() => {
+            let m = parseInt(localMinute, 10);
+            if (isNaN(m) || m < 0) m = 0;
+            if (m > 59) m = 59;
+            handleMinuteChange(String(m).padStart(2, '0'));
+          }}
+          style={{ textAlign: 'center', fontWeight: 700, width: '100%', margin: 0, paddingRight: '8px' }}
+        />
+        <datalist id="minutes-list">
+          {minutes.map(m => <option key={m} value={m} />)}
+        </datalist>
+      </div>
+
       <select
         className="form-select"
-        required={required}
-        value={hour12}
-        onChange={e => handleChange(e.target.value, minute, period)}
-        style={{ textAlign: 'center', fontWeight: 700 }}
-      >
-        {hours.map(h => <option key={h} value={h}>{h}</option>)}
-      </select>
-      <select
-        className="form-select"
-        value={minute}
-        onChange={e => handleChange(hour12, e.target.value, period)}
-        style={{ textAlign: 'center', fontWeight: 700 }}
-      >
-        {minutes.map(m => <option key={m} value={m}>:{m}</option>)}
-      </select>
-      <select
-        className="form-select"
-        value={period}
-        onChange={e => handleChange(hour12, minute, e.target.value)}
+        value={localPeriod}
+        onChange={e => handlePeriodChange(e.target.value)}
         style={{
           textAlign: 'center',
           fontWeight: 800,
-          color: period === 'AM' ? 'var(--primary)' : 'var(--secondary)',
+          color: localPeriod === 'AM' ? 'var(--primary)' : 'var(--secondary)',
+          margin: 0
         }}
       >
         <option value="AM">AM</option>
