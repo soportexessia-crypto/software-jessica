@@ -1002,62 +1002,84 @@ export const Caja: React.FC = () => {
               </div>
 
               <div className="modal-footer" style={{ backgroundColor: 'var(--bg-app)', borderTop: '1px solid var(--border-light)', padding: '16px 32px', gap: '8px' }}>
-                <button 
+            <button 
                   className="btn btn-secondary" 
                   style={{ flex: 1, padding: '8px', fontSize: '12px' }}
                   onClick={() => {
                     const pat = selectedRecordForInvoice.patientId ? getPatientById(selectedRecordForInvoice.patientId) : undefined;
+                    const shortId = selectedRecordForInvoice.id.substring(0, 8).toUpperCase();
+                    const patientName = pat ? pat.name : 'N/A';
+                    const patientDoc = pat ? pat.document : 'N/A';
+                    const patientEps = pat ? pat.eps : 'Particular';
+                    const record = selectedRecordForInvoice;
                     const printWindow = window.open('', '_blank');
                     if (printWindow) {
                       printWindow.document.write(`
                         <html>
                           <head>
-                            <title>Comprobante REC-${selectedRecordForInvoice.id.substring(0, 8).toUpperCase()}</title>
+                            <title>Comprobante REC-${shortId}</title>
                             <style>
-                              body { font-family: Arial, sans-serif; color: #333; padding: 40px; margin: 0; }
-                              .box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 30px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-                              .header { display: flex; justify-content: space-between; border-bottom: 2px solid #3b82f6; padding-bottom: 15px; margin-bottom: 20px; }
-                              .title { font-size: 24px; font-weight: bold; color: #3b82f6; }
-                              .details { margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
-                              .table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                              .table th { background: #f8fafc; border-bottom: 1px solid #cbd5e1; padding: 8px; text-align: left; font-weight: bold; }
-                              .table td { padding: 8px; border-bottom: 1px solid #f1f5f9; }
-                              .footer { text-align: center; margin-top: 30px; font-size: 11px; color: #64748b; border-top: 1px dashed #e2e8f0; padding-top: 15px; }
-                              .btn-print { background: #3b82f6; color: white; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-bottom: 15px; }
-                              @media print { .btn-print { display: none; } }
+                              body { font-family: Arial, sans-serif; color: #1e293b; padding: 30px; margin: 0; background: #ffffff; }
+                              .box { border: 1px solid #e2e8f0; border-radius: 12px; padding: 40px; max-width: 650px; margin: 20px auto; background: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+                              .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0284c7; padding-bottom: 20px; margin-bottom: 24px; align-items: center; }
+                              .title { font-size: 26px; font-weight: 800; color: #0284c7; }
+                              .receipt-tag { font-weight: 800; font-size: 13px; color: #64748b; background: #f1f5f9; padding: 4px 10px; border-radius: 6px; }
+                              .details { margin-bottom: 30px; font-size: 14px; line-height: 1.6; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; }
+                              .table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                              .table th { background: #0284c7; color: white; padding: 12px; text-align: left; font-weight: 700; border-radius: 6px 0 0 6px; }
+                              .table th:last-child { border-radius: 0 6px 6px 0; text-align: right; }
+                              .table td { padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14.5px; }
+                              .total-row td { font-size: 16px; font-weight: 800; color: #0f172a; border-top: 2px solid #e2e8f0; padding-top: 18px; }
+                              .signature-area { display: flex; justify-content: space-between; margin-top: 50px; padding-top: 30px; border-top: 1px dashed #e2e8f0; }
+                              .signature-line { text-align: center; width: 45%; font-size: 12px; color: #64748b; }
+                              .signature-line .line { border-bottom: 1px solid #cbd5e1; height: 40px; margin-bottom: 8px; }
+                              .footer { text-align: center; margin-top: 40px; font-size: 11px; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 20px; }
                             </style>
                           </head>
-                          <body>
-                            <div style="text-align: right;">
-                              <button class="btn-print" onclick="window.print()">Imprimir / Guardar PDF</button>
-                            </div>
+                          <body onload="window.print(); setTimeout(() => window.close(), 1000)">
                             <div class="box">
                               <div class="header">
                                 <span class="title">XESSIA DENTAL</span>
-                                <span style="font-weight: bold; font-size: 12px; color: #475569;">RECIBO N°: REC-${selectedRecordForInvoice.id.substring(0, 8).toUpperCase()}</span>
+                                <span class="receipt-tag">RECIBO N°: REC-${shortId}</span>
                               </div>
                               <div class="details">
-                                <strong>Fecha:</strong> ${selectedRecordForInvoice.date}<br/>
-                                <strong>Tipo de Soporte:</strong> ${selectedRecordForInvoice.type === 'Ingreso' ? 'Abono de Paciente' : 'Egreso de Caja (Gasto)'}<br/>
-                                <strong>Método:</strong> ${selectedRecordForInvoice.method}<br/>
-                                <strong>Paciente:</strong> ${pat ? pat.name : 'N/A'} (C.C. ${pat ? pat.document : 'N/A'})
+                                <div><strong>Fecha:</strong> ${record.date}</div>
+                                <div><strong>Método de Pago:</strong> ${record.method}</div>
+                                <div><strong>Paciente:</strong> ${patientName}</div>
+                                <div><strong>Identificación:</strong> C.C. ${patientDoc}</div>
+                                <div><strong>Eps / Convenio:</strong> ${patientEps}</div>
+                                <div><strong>Tipo Soporte:</strong> ${record.type === 'Ingreso' ? 'Ingreso a Caja (Abono)' : 'Egreso de Caja (Gasto)'}</div>
                               </div>
                               <table class="table">
                                 <thead>
                                   <tr>
-                                    <th>Descripción</th>
-                                    <th style="text-align: right;">Valor</th>
+                                    <th>Concepto / Descripción del Soporte</th>
+                                    <th style="text-align: right;">Total Liquidado (COP)</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   <tr>
-                                    <td>${selectedRecordForInvoice.notes || 'Registro en caja'}</td>
-                                    <td style="text-align: right; font-weight: bold;">$${selectedRecordForInvoice.amount.toLocaleString('es-CO')} COP</td>
+                                    <td>${record.notes || 'Registro administrativo de caja'}</td>
+                                    <td style="text-align: right; font-weight: bold; color: #0284c7;">$${record.amount.toLocaleString('es-CO')} COP</td>
+                                  </tr>
+                                  <tr class="total-row">
+                                    <td>TOTAL RECIBIDO:</td>
+                                    <td style="text-align: right; color: #0284c7; font-weight: bold;">$${record.amount.toLocaleString('es-CO')} COP</td>
                                   </tr>
                                 </tbody>
                               </table>
+                              <div class="signature-area">
+                                <div class="signature-line">
+                                  <div class="line"></div>
+                                  <strong>Jessica Montenegro</strong><br/>Firma Autorizada
+                                </div>
+                                <div class="signature-line">
+                                  <div class="line"></div>
+                                  <strong>${patientName}</strong><br/>Firma Paciente
+                                </div>
+                              </div>
                               <div class="footer">
-                                Clínica Dental XESSIA S.A.S. • NIT: 901.482.193-4 • Soporte Técnico de Caja
+                                Centro Odontológico Catalina EVA • NIT: 901.482.193-4 • XESSIA Gestión Odontológica Profesional
                               </div>
                             </div>
                           </body>
@@ -1079,54 +1101,100 @@ export const Caja: React.FC = () => {
                   }}
                   onClick={() => {
                     const pat = selectedRecordForInvoice.patientId ? getPatientById(selectedRecordForInvoice.patientId) : undefined;
+                    const shortId = selectedRecordForInvoice.id.substring(0, 8).toUpperCase();
+                    const patientName = pat ? pat.name : 'N/A';
+                    const patientDoc = pat ? pat.document : 'N/A';
+                    const patientEps = pat ? pat.eps : 'Particular';
+                    const record = selectedRecordForInvoice;
                     const printWindow = window.open('', '_blank');
                     if (printWindow) {
                       printWindow.document.write(`
                         <html>
                           <head>
-                            <title>Comprobante REC-${selectedRecordForInvoice.id.substring(0, 8).toUpperCase()}</title>
+                            <title>Comprobante REC-${shortId}</title>
                             <style>
-                              body { font-family: Arial, sans-serif; color: #333; padding: 40px; margin: 0; }
-                              .box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 30px; max-width: 600px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-                              .header { display: flex; justify-content: space-between; border-bottom: 2px solid #3b82f6; padding-bottom: 15px; margin-bottom: 20px; }
-                              .title { font-size: 24px; font-weight: bold; color: #3b82f6; }
-                              .details { margin-bottom: 20px; font-size: 14px; line-height: 1.6; }
-                              .table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-                              .table th { background: #f8fafc; border-bottom: 1px solid #cbd5e1; padding: 8px; text-align: left; font-weight: bold; }
-                              .table td { padding: 8px; border-bottom: 1px solid #f1f5f9; }
-                              .footer { text-align: center; margin-top: 30px; font-size: 11px; color: #64748b; border-top: 1px dashed #e2e8f0; padding-top: 15px; }
+                              body { font-family: Arial, sans-serif; color: #1e293b; padding: 30px; margin: 0; background: #ffffff; }
+                              .box { border: 1px solid #e2e8f0; border-radius: 12px; padding: 40px; max-width: 650px; margin: 20px auto; background: #ffffff; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+                              .header { display: flex; justify-content: space-between; border-bottom: 2px solid #0284c7; padding-bottom: 20px; margin-bottom: 24px; align-items: center; }
+                              .title { font-size: 26px; font-weight: 800; color: #0284c7; }
+                              .receipt-tag { font-weight: 800; font-size: 13px; color: #64748b; background: #f1f5f9; padding: 4px 10px; border-radius: 6px; }
+                              .details { margin-bottom: 30px; font-size: 14px; line-height: 1.6; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; background: #f8fafc; padding: 16px; border-radius: 8px; border: 1px solid #e2e8f0; }
+                              .table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+                              .table th { background: #0284c7; color: white; padding: 12px; text-align: left; font-weight: 700; border-radius: 6px 0 0 6px; }
+                              .table th:last-child { border-radius: 0 6px 6px 0; text-align: right; }
+                              .table td { padding: 14px 12px; border-bottom: 1px solid #e2e8f0; font-size: 14.5px; }
+                              .total-row td { font-size: 16px; font-weight: 800; color: #0f172a; border-top: 2px solid #e2e8f0; padding-top: 18px; }
+                              .signature-area { display: flex; justify-content: space-between; margin-top: 50px; padding-top: 30px; border-top: 1px dashed #e2e8f0; }
+                              .signature-line { text-align: center; width: 45%; font-size: 12px; color: #64748b; }
+                              .signature-line .line { border-bottom: 1px solid #cbd5e1; height: 40px; margin-bottom: 8px; }
+                              .footer { text-align: center; margin-top: 40px; font-size: 11px; color: #94a3b8; border-top: 1px dashed #e2e8f0; padding-top: 20px; }
                             </style>
+                            <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
                           </head>
-                          <body onload="window.print()">
-                            <div class="box">
+                          <body>
+                            <div class="box" id="invoice-card">
                               <div class="header">
                                 <span class="title">XESSIA DENTAL</span>
-                                <span style="font-weight: bold; font-size: 12px; color: #475569;">RECIBO N°: REC-${selectedRecordForInvoice.id.substring(0, 8).toUpperCase()}</span>
+                                <span class="receipt-tag">RECIBO N°: REC-${shortId}</span>
                               </div>
                               <div class="details">
-                                <strong>Fecha:</strong> ${selectedRecordForInvoice.date}<br/>
-                                <strong>Tipo de Soporte:</strong> ${selectedRecordForInvoice.type === 'Ingreso' ? 'Abono de Paciente' : 'Egreso de Caja (Gasto)'}<br/>
-                                <strong>Método:</strong> ${selectedRecordForInvoice.method}<br/>
-                                <strong>Paciente:</strong> ${pat ? pat.name : 'N/A'} (C.C. ${pat ? pat.document : 'N/A'})
+                                <div><strong>Fecha:</strong> ${record.date}</div>
+                                <div><strong>Método de Pago:</strong> ${record.method}</div>
+                                <div><strong>Paciente:</strong> ${patientName}</div>
+                                <div><strong>Identificación:</strong> C.C. ${patientDoc}</div>
+                                <div><strong>Eps / Convenio:</strong> ${patientEps}</div>
+                                <div><strong>Tipo Soporte:</strong> ${record.type === 'Ingreso' ? 'Ingreso a Caja (Abono)' : 'Egreso de Caja (Gasto)'}</div>
                               </div>
                               <table class="table">
                                 <thead>
                                   <tr>
-                                    <th>Descripción</th>
-                                    <th style="text-align: right;">Valor</th>
+                                    <th>Concepto / Descripción del Soporte</th>
+                                    <th style="text-align: right;">Total Liquidado (COP)</th>
                                   </tr>
                                 </thead>
                                 <tbody>
                                   <tr>
-                                    <td>${selectedRecordForInvoice.notes || 'Registro en caja'}</td>
-                                    <td style="text-align: right; font-weight: bold;">$${selectedRecordForInvoice.amount.toLocaleString('es-CO')} COP</td>
+                                    <td>${record.notes || 'Registro administrativo de caja'}</td>
+                                    <td style="text-align: right; font-weight: bold; color: #0284c7;">$${record.amount.toLocaleString('es-CO')} COP</td>
+                                  </tr>
+                                  <tr class="total-row">
+                                    <td>TOTAL RECIBIDO:</td>
+                                    <td style="text-align: right; color: #0284c7; font-weight: bold;">$${record.amount.toLocaleString('es-CO')} COP</td>
                                   </tr>
                                 </tbody>
                               </table>
+                              <div class="signature-area">
+                                <div class="signature-line">
+                                  <div class="line"></div>
+                                  <strong>Jessica Montenegro</strong><br/>Firma Autorizada
+                                </div>
+                                <div class="signature-line">
+                                  <div class="line"></div>
+                                  <strong>${patientName}</strong><br/>Firma Paciente
+                                </div>
+                              </div>
                               <div class="footer">
-                                Clínica Dental XESSIA S.A.S. • NIT: 901.482.193-4 • Soporte Técnico de Caja
+                                Centro Odontológico Catalina EVA • NIT: 901.482.193-4 • XESSIA Gestión Odontológica Profesional
                               </div>
                             </div>
+                            <script>
+                              window.onload = function() {
+                                const element = document.getElementById('invoice-card');
+                                const opt = {
+                                  margin: 10,
+                                  filename: 'REC-${shortId}.pdf',
+                                  image: { type: 'jpeg', quality: 0.98 },
+                                  html2canvas: { scale: 2, useCORS: true },
+                                  jsPDF: { unit: 'mm', format: 'letter', orientation: 'portrait' }
+                                };
+                                html2pdf().from(element).set(opt).save().then(() => {
+                                  setTimeout(() => { window.close(); }, 1500);
+                                }).catch(err => {
+                                  console.error(err);
+                                  window.close();
+                                });
+                              };
+                            </script>
                           </body>
                         </html>
                       `);
@@ -1134,7 +1202,7 @@ export const Caja: React.FC = () => {
                     }
                   }}
                 >
-                  <Download size={14} /> Guardar PDF
+                  <Download size={14} /> Descargar PDF
                 </button>
               </div>
 

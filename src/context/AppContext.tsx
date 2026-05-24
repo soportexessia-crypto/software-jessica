@@ -357,7 +357,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addAppointment = async (newAppt: Omit<Appointment, 'id' | 'paidAmount' | 'paymentStatus'> & { paidAmount?: number; paymentMethod?: string }): Promise<void> => {
     try {
-      const savedAppt = await api.post('/appointments', newAppt);
+      const now = new Date();
+      const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const savedAppt = await api.post('/appointments', { ...newAppt, localDate });
       const mapped: Appointment = { ...savedAppt, id: savedAppt._id };
       setAppointments(prev => [mapped, ...prev]);
       
@@ -399,7 +401,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addFinancialRecord = async (newRecord: Omit<FinancialRecord, 'id' | 'date'> & { date?: string }): Promise<void> => {
     try {
-      const savedFin = await api.post('/financials', newRecord);
+      const now = new Date();
+      const localDate = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+      const savedFin = await api.post('/financials', { ...newRecord, date: newRecord.date || localDate });
       const mapped: FinancialRecord = { ...savedFin, id: savedFin._id };
       setFinancials(prev => [mapped, ...prev]);
       

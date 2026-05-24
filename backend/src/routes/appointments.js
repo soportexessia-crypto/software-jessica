@@ -76,7 +76,7 @@ router.post('/', auth, async (req, res) => {
       const finRecord = new Financial({
         patientId: req.body.patientId,
         appointmentId: appt._id,
-        date: new Date().toISOString().replace('T', ' ').substring(0, 16),
+        date: req.body.localDate || new Date().toISOString().replace('T', ' ').substring(0, 16),
         amount: paidAmount,
         method: req.body.paymentMethod || 'Efectivo',
         type: 'Ingreso',

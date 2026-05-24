@@ -32,3 +32,4 @@ backend/uploads/releases/*.zip
 # Electron builder outputs
 release/
 dist-electron/
+release.rar

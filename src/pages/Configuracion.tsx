@@ -440,7 +440,7 @@ export const Configuracion: React.FC = () => {
                       p.debt
                     ];
                   });
-                  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                  const csv = 'sep=;\n' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
                   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement('a');
@@ -484,7 +484,7 @@ export const Configuracion: React.FC = () => {
                       appt.status
                     ];
                   });
-                  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                  const csv = 'sep=;\n' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
                   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement('a');
@@ -516,7 +516,7 @@ export const Configuracion: React.FC = () => {
                     f.type,
                     f.amount
                   ]);
-                  const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+                  const csv = 'sep=;\n' + [headers.join(';'), ...rows.map(r => r.join(';'))].join('\n');
                   const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
                   const url = URL.createObjectURL(blob);
                   const link = document.createElement('a');
