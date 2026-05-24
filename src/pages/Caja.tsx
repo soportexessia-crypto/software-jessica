@@ -231,7 +231,8 @@ export const Caja: React.FC = () => {
             <TrendingUp size={24} />
           </div>
           <div className="kpi-details">
-            <span className="kpi-title">Recaudo Diario (Ingresos)</span>
+            <span className="kpi-title">Ingresos Totales de Hoy</span>
+            <span className="kpi-subtitle" style={{ fontSize: '11px', color: 'var(--text-light)', fontWeight: 500 }}>Efectivo, tarjetas, transferencias, Nequi, etc.</span>
             <span className="kpi-value">${totalIncomes.toLocaleString('es-CO')}</span>
           </div>
         </div>
@@ -241,7 +242,8 @@ export const Caja: React.FC = () => {
             <TrendingUp size={24} style={{ transform: 'rotate(180deg)' }} />
           </div>
           <div className="kpi-details">
-            <span className="kpi-title">Gastos Diarios (Egresos)</span>
+            <span className="kpi-title">Gastos Totales de Hoy</span>
+            <span className="kpi-subtitle" style={{ fontSize: '11px', color: 'var(--text-light)', fontWeight: 500 }}>Todos los egresos registrados</span>
             <span className="kpi-value">${totalExpenses.toLocaleString('es-CO')}</span>
           </div>
         </div>
@@ -251,7 +253,8 @@ export const Caja: React.FC = () => {
             <DollarSign size={24} />
           </div>
           <div className="kpi-details">
-            <span className="kpi-title">Balance Neto de Caja</span>
+            <span className="kpi-title">Ganancia Neta del Día</span>
+            <span className="kpi-subtitle" style={{ fontSize: '11px', color: 'var(--text-light)', fontWeight: 500 }}>Total Ingresos menos Total Gastos</span>
             <span className="kpi-value">${netBalance.toLocaleString('es-CO')}</span>
           </div>
         </div>
@@ -261,7 +264,8 @@ export const Caja: React.FC = () => {
             <DollarSign size={24} />
           </div>
           <div className="kpi-details">
-            <span className="kpi-title">Efectivo en Caja</span>
+            <span className="kpi-title">Efectivo Físico en Gaveta</span>
+            <span className="kpi-subtitle" style={{ fontSize: '11px', color: 'var(--text-light)', fontWeight: 500 }}>Solo monedas y billetes reales en caja</span>
             <span className="kpi-value">${totalEfectivo.toLocaleString('es-CO')}</span>
           </div>
         </div>
