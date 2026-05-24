@@ -174,18 +174,30 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
     showToast
   } = useApp();
 
-
-
   const [patientMode, setPatientMode] = useState<'existente' | 'nuevo'>('existente');
   const [selectedPatientId, setSelectedPatientId] = useState('');
+  
+  // Full new patient states
   const [newPatientName, setNewPatientName] = useState('');
   const [newPatientDoc, setNewPatientDoc] = useState('');
   const [newPatientPhone, setNewPatientPhone] = useState('');
   const [hasDifferentWhatsApp, setHasDifferentWhatsApp] = useState(false);
   const [newPatientWhatsApp, setNewPatientWhatsApp] = useState('');
+  const [newPatientAddress, setNewPatientAddress] = useState('');
+  const [newPatientBirthDate, setNewPatientBirthDate] = useState('1990-01-01');
+  const [newPatientGender, setNewPatientGender] = useState<'Femenino' | 'Masculino' | 'Otro'>('Femenino');
+  const [newPatientEmail, setNewPatientEmail] = useState('');
+  const [newPatientEps, setNewPatientEps] = useState('Particular');
+  const [newPatientAllergies, setNewPatientAllergies] = useState('Ninguna');
+  const [newPatientObservations, setNewPatientObservations] = useState('Paciente registrado vía Cita Rápida');
+  const [newPatientCompanionPhone, setNewPatientCompanionPhone] = useState('');
+  const [newPatientCompanionName, setNewPatientCompanionName] = useState('');
 
   const [selectedDoctorId, setSelectedDoctorId] = useState('');
-  const [selectedProcedureCode, setSelectedProcedureCode] = useState('');
+  
+  // Selected procedures list state: [{ code, price, duration }]
+  const [selectedProceduresList, setSelectedProceduresList] = useState<{ code: string; price: number; duration: number }[]>([]);
+
   const [date, setDate] = useState('');
   const [time, setTime] = useState('09:00');
   const [notes, setNotes] = useState('');
@@ -201,6 +213,15 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
   const [doctorMismatch, setDoctorMismatch] = useState(false);
   const [success, setSuccess] = useState(false);
 
+  // Initialize selectedProceduresList once procedures catalog is loaded
+  useEffect(() => {
+    if (procedures.length > 0 && selectedProceduresList.length === 0) {
+      setSelectedProceduresList([
+        { code: procedures[0].code, price: procedures[0].price, duration: procedures[0].duration }
+      ]);
+    }
+  }, [procedures]);
+
   // Reset fields & restore draft
   useEffect(() => {
     if (isOpen) {
@@ -215,8 +236,27 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
           setNewPatientPhone(draft.newPatientPhone || '');
           setHasDifferentWhatsApp(draft.hasDifferentWhatsApp || false);
           setNewPatientWhatsApp(draft.newPatientWhatsApp || '');
+          
+          setNewPatientAddress(draft.newPatientAddress || '');
+          setNewPatientBirthDate(draft.newPatientBirthDate || '1990-01-01');
+          setNewPatientGender(draft.newPatientGender || 'Femenino');
+          setNewPatientEmail(draft.newPatientEmail || '');
+          setNewPatientEps(draft.newPatientEps || 'Particular');
+          setNewPatientAllergies(draft.newPatientAllergies || 'Ninguna');
+          setNewPatientObservations(draft.newPatientObservations || 'Paciente registrado vía Cita Rápida');
+          setNewPatientCompanionPhone(draft.newPatientCompanionPhone || '');
+          setNewPatientCompanionName(draft.newPatientCompanionName || '');
+
           setSelectedDoctorId(draft.selectedDoctorId || doctors[0]?.id || '');
-          setSelectedProcedureCode(draft.selectedProcedureCode || procedures[0]?.code || '');
+          
+          if (draft.selectedProceduresList && draft.selectedProceduresList.length > 0) {
+            setSelectedProceduresList(draft.selectedProceduresList);
+          } else if (procedures.length > 0) {
+            setSelectedProceduresList([
+              { code: procedures[0].code, price: procedures[0].price, duration: procedures[0].duration }
+            ]);
+          }
+
           setDate(draft.date || '');
           setTime(draft.time || '09:00');
           setNotes(draft.notes || '');
@@ -239,14 +279,31 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
       setNewPatientPhone('');
       setHasDifferentWhatsApp(false);
       setNewPatientWhatsApp('');
+
+      setNewPatientAddress('');
+      setNewPatientBirthDate('1990-01-01');
+      setNewPatientGender('Femenino');
+      setNewPatientEmail('');
+      setNewPatientEps('Particular');
+      setNewPatientAllergies('Ninguna');
+      setNewPatientObservations('Paciente registrado vía Cita Rápida');
+      setNewPatientCompanionPhone('');
+      setNewPatientCompanionName('');
+
       setSelectedDoctorId(doctors[0]?.id || '');
-      setSelectedProcedureCode(procedures[0]?.code || '');
+      if (procedures.length > 0) {
+        setSelectedProceduresList([
+          { code: procedures[0].code, price: procedures[0].price, duration: procedures[0].duration }
+        ]);
+      } else {
+        setSelectedProceduresList([]);
+      }
+
       setDiscount(0);
       setCustomPrice(0);
       setPaidAmount(0);
       setPaymentMethod('Efectivo');
       
-      // Default to today's date
       const today = new Date();
       const formattedDate = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       setDate(formattedDate);
@@ -269,8 +326,17 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
         newPatientPhone,
         hasDifferentWhatsApp,
         newPatientWhatsApp,
+        newPatientAddress,
+        newPatientBirthDate,
+        newPatientGender,
+        newPatientEmail,
+        newPatientEps,
+        newPatientAllergies,
+        newPatientObservations,
+        newPatientCompanionPhone,
+        newPatientCompanionName,
         selectedDoctorId,
-        selectedProcedureCode,
+        selectedProceduresList,
         date,
         time,
         notes,
@@ -281,7 +347,7 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
       };
       localStorage.setItem('xessia_draft_quick_appt', JSON.stringify(draft));
     }
-  }, [isOpen, success, patientMode, selectedPatientId, newPatientName, newPatientDoc, newPatientPhone, hasDifferentWhatsApp, newPatientWhatsApp, selectedDoctorId, selectedProcedureCode, date, time, notes, discount, customPrice, paidAmount, paymentMethod]);
+  }, [isOpen, success, patientMode, selectedPatientId, newPatientName, newPatientDoc, newPatientPhone, hasDifferentWhatsApp, newPatientWhatsApp, newPatientAddress, newPatientBirthDate, newPatientGender, newPatientEmail, newPatientEps, newPatientAllergies, newPatientObservations, newPatientCompanionPhone, newPatientCompanionName, selectedDoctorId, selectedProceduresList, date, time, notes, discount, customPrice, paidAmount, paymentMethod]);
 
   // Double sync pricing handlers
   const handleCustomPriceChange = (val: number) => {
@@ -304,31 +370,62 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
     }
   };
 
-  // Handle auto calculations and alerts based on chosen Procedure
-  useEffect(() => {
-    if (!selectedProcedureCode) return;
-    const procedure = procedures.find(p => p.code === selectedProcedureCode);
-    if (procedure) {
-      setDuration(procedure.duration);
-      setPrice(procedure.price);
-      setCustomPrice(procedure.price);
-      setDiscount(0);
-      
-      // Smart Procedural Alert
-      if (procedure.alert) {
-        setAlertMsg(procedure.alert);
-      } else {
-        setAlertMsg(null);
-      }
-
-      // Check Doctor match
-      if (procedure.specialist !== 'Todos' && selectedDoctorId && procedure.specialist !== selectedDoctorId) {
-        setDoctorMismatch(true);
-      } else {
-        setDoctorMismatch(false);
-      }
+  // Dynamic row-builders for multiple procedures
+  const handleAddProcedureRow = () => {
+    if (procedures.length > 0) {
+      setSelectedProceduresList(prev => [
+        ...prev,
+        { code: procedures[0].code, price: procedures[0].price, duration: procedures[0].duration }
+      ]);
     }
-  }, [selectedProcedureCode, selectedDoctorId, procedures]);
+  };
+
+  const handleRemoveProcedureRow = (index: number) => {
+    setSelectedProceduresList(prev => prev.filter((_, idx) => idx !== index));
+  };
+
+  const handleProcedureRowChange = (index: number, code: string) => {
+    const proc = procedures.find(p => p.code === code);
+    if (!proc) return;
+    setSelectedProceduresList(prev => {
+      const updated = [...prev];
+      updated[index] = { code: proc.code, price: proc.price, duration: proc.duration };
+      return updated;
+    });
+  };
+
+  // Auto calculations and alerts based on chosen Procedures list
+  useEffect(() => {
+    if (selectedProceduresList.length === 0) return;
+    
+    // Sum prices and durations
+    const totalDuration = selectedProceduresList.reduce((sum, item) => sum + item.duration, 0);
+    const totalPrice = selectedProceduresList.reduce((sum, item) => sum + item.price, 0);
+
+    setDuration(totalDuration);
+    setPrice(totalPrice);
+    
+    // Auto populate prices (only reset customPrice if it was 0 or just initialized)
+    setCustomPrice(prev => (prev === 0 ? totalPrice : prev));
+
+    // Compile dynamic alerts
+    const alerts = selectedProceduresList
+      .map(item => procedures.find(p => p.code === item.code)?.alert)
+      .filter(Boolean);
+    if (alerts.length > 0) {
+      setAlertMsg(alerts.join(' | '));
+    } else {
+      setAlertMsg(null);
+    }
+
+    // Check doctor mismatch
+    const hasMismatch = selectedProceduresList.some(item => {
+      const proc = procedures.find(p => p.code === item.code);
+      return proc && proc.specialist !== 'Todos' && selectedDoctorId && proc.specialist !== selectedDoctorId;
+    });
+    setDoctorMismatch(hasMismatch);
+
+  }, [selectedProceduresList, selectedDoctorId, procedures]);
 
   // Check debt for existing patient
   useEffect(() => {
@@ -352,12 +449,12 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
 
     try {
       if (patientMode === 'nuevo') {
-        if (!newPatientName || !newPatientDoc || !newPatientPhone) {
-          showToast('Por favor complete todos los datos del nuevo paciente.', 'warning');
+        if (!newPatientName || !newPatientDoc || !newPatientPhone || !newPatientBirthDate) {
+          showToast('Por favor complete los datos obligatorios del nuevo paciente.', 'warning');
           return;
         }
         
-        const finalWhatsApp = hasDifferentWhatsApp && newPatientWhatsApp 
+        const finalWhatsApp = newPatientWhatsApp.trim()
           ? newPatientWhatsApp.replace(/[^0-9]/g, '').slice(0, 10)
           : newPatientPhone.replace(/[^0-9]/g, '').slice(0, 10);
 
@@ -366,18 +463,25 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
           document: newPatientDoc,
           phone: newPatientPhone.replace(/[^0-9]/g, '').slice(0, 10),
           whatsapp: finalWhatsApp,
-          address: '',
-          birthDate: '1990-01-01',
-          gender: 'Femenino', // default to Femenino
-          email: '',
-          eps: 'Particular',
-          allergies: 'Ninguna',
-          observations: 'Paciente registrado vía Cita Rápida'
+          address: newPatientAddress,
+          birthDate: newPatientBirthDate,
+          gender: newPatientGender,
+          email: newPatientEmail,
+          eps: newPatientEps,
+          allergies: newPatientAllergies,
+          observations: newPatientObservations,
+          companionName: newPatientCompanionName || undefined,
+          companionPhone: newPatientCompanionPhone.replace(/[^0-9]/g, '').slice(0, 10) || undefined
         });
         patientId = newPat.id;
       }
 
-      if (!patientId || !selectedDoctorId || !selectedProcedureCode || !date || !time) {
+      const compiledProcedureCode = selectedProceduresList
+        .map(p => p.code)
+        .filter(Boolean)
+        .join(', ');
+
+      if (!patientId || !selectedDoctorId || !compiledProcedureCode || !date || !time) {
         showToast('Por favor complete todos los campos.', 'warning');
         return;
       }
@@ -385,7 +489,7 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
       await addAppointment({
         patientId,
         doctorId: selectedDoctorId,
-        procedureCode: selectedProcedureCode,
+        procedureCode: compiledProcedureCode,
         date,
         time, // Siempre HH:MM (24h) para MongoDB
         duration,
@@ -410,7 +514,7 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
   return (
     // ⚠️ SIN onClick en el modal-overlay — el modal SOLO se cierra con botones explícitos
     <div className="modal-overlay">
-      <div className="modal-content fade-in" style={{ maxWidth: '550px' }}>
+      <div className="modal-content fade-in" style={{ maxWidth: '680px' }}>
         <div className="modal-header">
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             Cita Rápida
@@ -472,62 +576,174 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
                   </select>
                 </div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', backgroundColor: 'var(--bg-hover)', padding: '12px', borderRadius: '8px' }}>
-                  <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--secondary)' }}>DATOS DEL NUEVO PACIENTE</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', backgroundColor: 'var(--bg-hover)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-light)' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 800, color: 'var(--secondary)', borderBottom: '1px solid var(--border-light)', paddingBottom: '6px' }}>
+                    DATOS COMPLETOS DEL NUEVO PACIENTE
+                  </div>
+                  
+                  {/* Fila 1: Nombre y Cédula */}
                   <div className="grid-2" style={{ gap: '10px' }}>
                     <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px' }}>Nombre Completo *</label>
                       <input 
                         type="text" 
                         className="form-input" 
-                        placeholder="Nombre completo" 
+                        placeholder="Ej: Jessica Guerrero" 
                         required 
                         value={newPatientName}
                         onChange={(e) => setNewPatientName(e.target.value)}
                       />
                     </div>
                     <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px' }}>Cédula / Documento *</label>
                       <input 
                         type="text" 
                         className="form-input" 
-                        placeholder="Cédula/Documento" 
+                        placeholder="Ej: 10987654" 
                         required 
                         value={newPatientDoc}
                         onChange={(e) => setNewPatientDoc(e.target.value)}
                       />
                     </div>
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'flex', gap: '6px' }}>
+
+                  {/* Fila 2: Celular y WhatsApp */}
+                  <div className="grid-2" style={{ gap: '10px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px' }}>Teléfono Celular *</label>
                       <input 
                         type="text" 
                         className="form-input" 
-                        placeholder="Teléfono Celular" 
+                        placeholder="Celular" 
                         required 
                         value={newPatientPhone}
                         onChange={(e) => setNewPatientPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
-                        style={{ flex: 1 }}
                       />
-                      <button 
-                        type="button" 
-                        className="btn btn-secondary" 
-                        onClick={() => setHasDifferentWhatsApp(!hasDifferentWhatsApp)}
-                        style={{ fontSize: '11px', padding: '0 10px', height: '36px', whiteSpace: 'nowrap' }}
-                      >
-                        {hasDifferentWhatsApp ? '- WhatsApp único' : '+ WhatsApp diferente'}
-                      </button>
                     </div>
-                    
-                    {hasDifferentWhatsApp && (
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px' }}>WhatsApp (Diferente)</label>
                       <input 
                         type="text" 
-                        className="form-input animate-fade-in" 
-                        placeholder="WhatsApp (Diferente)" 
-                        required 
+                        className="form-input" 
+                        placeholder="WhatsApp (Dejar vacío si es el mismo)" 
                         value={newPatientWhatsApp}
                         onChange={(e) => setNewPatientWhatsApp(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
                       />
-                    )}
+                    </div>
                   </div>
+
+                  {/* Fila 3: Email y Dirección */}
+                  <div className="grid-2" style={{ gap: '10px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px' }}>Email</label>
+                      <input 
+                        type="email" 
+                        className="form-input" 
+                        placeholder="ejemplo@correo.com" 
+                        value={newPatientEmail}
+                        onChange={(e) => setNewPatientEmail(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px' }}>Dirección Residencia</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="Calle 123 # 45-67" 
+                        value={newPatientAddress}
+                        onChange={(e) => setNewPatientAddress(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Fila 4: Fecha Nacimiento, Sexo y EPS */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr', gap: '10px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px' }}>Fecha de Nacimiento *</label>
+                      <input 
+                        type="date" 
+                        className="form-input" 
+                        required 
+                        value={newPatientBirthDate}
+                        onChange={(e) => setNewPatientBirthDate(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px' }}>Sexo *</label>
+                      <select 
+                        className="form-select" 
+                        required 
+                        value={newPatientGender}
+                        onChange={(e) => setNewPatientGender(e.target.value as any)}
+                        style={{ margin: 0 }}
+                      >
+                        <option value="Femenino">Femenino</option>
+                        <option value="Masculino">Masculino</option>
+                        <option value="Otro">Otro</option>
+                      </select>
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px' }}>EPS / Seguro *</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="Particular, Sanitas..." 
+                        required 
+                        value={newPatientEps}
+                        onChange={(e) => setNewPatientEps(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Fila 5: Alergias y Observaciones */}
+                  <div className="grid-2" style={{ gap: '10px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px' }}>Alergias / Advertencias *</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="Ninguna, Penicilina..." 
+                        required 
+                        value={newPatientAllergies}
+                        onChange={(e) => setNewPatientAllergies(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px' }}>Observaciones Iniciales</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="Observación o diagnóstico" 
+                        value={newPatientObservations}
+                        onChange={(e) => setNewPatientObservations(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Fila 6: Acompañante */}
+                  <div className="grid-2" style={{ gap: '10px' }}>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px' }}>Nombre Acompañante (Familiar)</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="Nombre familiar" 
+                        value={newPatientCompanionName}
+                        onChange={(e) => setNewPatientCompanionName(e.target.value)}
+                      />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 0 }}>
+                      <label className="form-label" style={{ fontSize: '11px' }}>Celular Acompañante</label>
+                      <input 
+                        type="text" 
+                        className="form-input" 
+                        placeholder="Celular familiar" 
+                        value={newPatientCompanionPhone}
+                        onChange={(e) => setNewPatientCompanionPhone(e.target.value.replace(/[^0-9]/g, '').slice(0, 10))}
+                      />
+                    </div>
+                  </div>
+
                 </div>
               )}
 
@@ -548,22 +764,49 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
                 </select>
               </div>
 
-              {/* Procedure Selection */}
-              <div className="form-group">
+              {/* Procedures Selection List */}
+              <div className="form-group" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 <label className="form-label">Procedimiento / Tratamiento *</label>
-                <select 
-                  className="form-select" 
-                  required 
-                  value={selectedProcedureCode}
-                  onChange={(e) => setSelectedProcedureCode(e.target.value)}
+                
+                {selectedProceduresList.map((selectedProc, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <select 
+                      className="form-select" 
+                      required 
+                      value={selectedProc.code}
+                      onChange={(e) => handleProcedureRowChange(idx, e.target.value)}
+                      style={{ flex: 1, margin: 0 }}
+                    >
+                      <option value="" disabled>-- Seleccionar Procedimiento --</option>
+                      {procedures.map(pr => (
+                        <option key={pr.code} value={pr.code}>
+                          {pr.name} (${pr.price.toLocaleString('es-CO')})
+                        </option>
+                      ))}
+                    </select>
+                    
+                    {selectedProceduresList.length > 1 && (
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => handleRemoveProcedureRow(idx)}
+                        style={{ padding: '8px 12px', border: '1px solid var(--state-cancelada)', color: 'var(--state-cancelada)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, height: '38px', borderRadius: 'var(--radius-md)' }}
+                        title="Eliminar este tratamiento"
+                      >
+                        <X size={16} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+                
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleAddProcedureRow}
+                  style={{ alignSelf: 'flex-start', fontSize: '12px', padding: '6px 12px', marginTop: '4px', borderStyle: 'dashed', borderWidth: '1px' }}
                 >
-                  <option value="" disabled>-- Seleccionar Procedimiento --</option>
-                  {procedures.map(pr => (
-                    <option key={pr.code} value={pr.code}>
-                      {pr.name} (${pr.price.toLocaleString('es-CO')})
-                    </option>
-                  ))}
-                </select>
+                  + Agregar otro tratamiento
+                </button>
               </div>
 
               {/* Double pricing/discount section */}
@@ -646,11 +889,11 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <div>
-                    <span className="text-muted">Duración:</span>{' '}
+                    <span className="text-muted">Duración Total:</span>{' '}
                     <strong style={{ color: 'var(--secondary)' }}>{duration} minutos</strong>
                   </div>
                   <div>
-                    <span className="text-muted">Precio Base:</span>{' '}
+                    <span className="text-muted">Precio Base Total:</span>{' '}
                     <span style={{ textDecoration: discount > 0 ? 'line-through' : 'none', color: discount > 0 ? 'var(--text-muted)' : 'var(--secondary)', fontWeight: discount > 0 ? 400 : 700 }}>
                       ${price.toLocaleString('es-CO')}
                     </span>
@@ -694,8 +937,8 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
                 >
                   <AlertTriangle size={18} style={{ flexShrink: 0, marginTop: '2px' }} />
                   <div>
-                    <strong>Alerta de Especialidad:</strong> El doctor seleccionado no suele realizar este tratamiento. 
-                    El especialista autorizado es: <strong>{doctors.find(d => d.id === procedures.find(p => p.code === selectedProcedureCode)?.specialist)?.name}</strong>.
+                    <strong>Alerta de Especialidad:</strong> El doctor seleccionado no suele realizar alguno de los tratamientos elegidos. 
+                    Por favor verifique las especialidades autorizadas.
                   </div>
                 </div>
               )}
