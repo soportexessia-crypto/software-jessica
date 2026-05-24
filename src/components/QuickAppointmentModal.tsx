@@ -217,7 +217,7 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
   useEffect(() => {
     if (procedures.length > 0 && selectedProceduresList.length === 0) {
       setSelectedProceduresList([
-        { code: procedures[0].code, price: procedures[0].price, duration: procedures[0].duration }
+        { code: '', price: 0, duration: 0 }
       ]);
     }
   }, [procedures]);
@@ -253,7 +253,7 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
             setSelectedProceduresList(draft.selectedProceduresList);
           } else if (procedures.length > 0) {
             setSelectedProceduresList([
-              { code: procedures[0].code, price: procedures[0].price, duration: procedures[0].duration }
+              { code: '', price: 0, duration: 0 }
             ]);
           }
 
@@ -293,7 +293,7 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
       setSelectedDoctorId(doctors[0]?.id || '');
       if (procedures.length > 0) {
         setSelectedProceduresList([
-          { code: procedures[0].code, price: procedures[0].price, duration: procedures[0].duration }
+          { code: '', price: 0, duration: 0 }
         ]);
       } else {
         setSelectedProceduresList([]);
@@ -370,14 +370,14 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
     }
   };
 
+  const lastBasePriceRef = React.useRef(0);
+
   // Dynamic row-builders for multiple procedures
   const handleAddProcedureRow = () => {
-    if (procedures.length > 0) {
-      setSelectedProceduresList(prev => [
-        ...prev,
-        { code: procedures[0].code, price: procedures[0].price, duration: procedures[0].duration }
-      ]);
-    }
+    setSelectedProceduresList(prev => [
+      ...prev,
+      { code: '', price: 0, duration: 0 }
+    ]);
   };
 
   const handleRemoveProcedureRow = (index: number) => {
@@ -405,8 +405,12 @@ export const QuickAppointmentModal: React.FC<QuickAppointmentModalProps> = ({ is
     setDuration(totalDuration);
     setPrice(totalPrice);
     
-    // Auto populate prices (only reset customPrice if it was 0 or just initialized)
-    setCustomPrice(prev => (prev === 0 ? totalPrice : prev));
+    // Update customPrice if the procedures total base price actually changed
+    if (totalPrice !== lastBasePriceRef.current) {
+      lastBasePriceRef.current = totalPrice;
+      setCustomPrice(totalPrice);
+      setDiscount(0); // Reset discount since the selected treatments changed!
+    }
 
     // Compile dynamic alerts
     const alerts = selectedProceduresList
